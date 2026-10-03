@@ -438,6 +438,8 @@ func _build_result():
 	_result_text.bbcode_enabled = true
 	_result_text.size_flags_vertical = SIZE_EXPAND_FILL
 	_result_text.selection_enabled = true
+	_result_text.meta_underlined = true
+	_result_text.meta_clicked.connect(func(meta): OS.shell_open(str(meta)))
 	_result_text.add_theme_font_size_override("normal_font_size", 15)
 	_result_text.add_theme_font_size_override("bold_font_size", 16)
 	v.add_child(_result_text)
@@ -522,10 +524,15 @@ static func _markdown_to_bbcode(md: String) -> String:
 		if stripped.begins_with("#"):
 			out.append("[b]%s[/b]" % stripped.lstrip("# "))
 			continue
-		var re = RegEx.create_from_string("\\*\\*(.+?)\\*\\*")
-		line = re.sub(line, "[b]$1[/b]", true)
 		if stripped.begins_with("- ") or stripped.begins_with("* "):
 			line = "  • " + stripped.substr(2)
+		var re = RegEx.create_from_string("\\*\\*(.+?)\\*\\*")
+		line = re.sub(line, "[b]$1[/b]", true)
+		# [text](https://...) -> clickable link; ![alt](file) -> its alt text
+		var link_re = RegEx.create_from_string("!?\\[lb\\](.+?)\\]\\((https?://[^)\\s]+)\\)")
+		line = link_re.sub(line, "[url=$2]$1[/url]", true)
+		var img_re = RegEx.create_from_string("!\\[lb\\](.*?)\\]\\([^)]*\\)")
+		line = img_re.sub(line, "($1)", true)
 		out.append(line)
 	return "\n".join(out)
 

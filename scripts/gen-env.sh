@@ -40,6 +40,8 @@ NEXT_PUBLIC_GATEWAY_OPTIONAL=true
 MC_COORDINATOR_AGENT=
 MC_DISABLE_RATE_LIMIT=1
 MC_DISABLE_RUNTIME_SCAN=1
+# Local Ollama models are free: report them at zero cost.
+MC_SUBSCRIBED_PROVIDERS=ollama
 EOF
   chmod 600 vendor/mission-control/.env
   echo "created vendor/mission-control/.env"

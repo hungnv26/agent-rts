@@ -8,6 +8,8 @@ Factory to run code. A failed step sends an agent to the Repair Bay, and the fin
 waits at Human Approval until you sign it off. Every mission, step, agent status and cost is
 mirrored into Mission Control for the operational view.
 
+![The Reviewer waits at Human Approval](docs/screenshots/human-approval.png)
+
 The game is the interface; the work is real. It is built from three open-source projects that
 stay loosely coupled through one small adapter:
 
@@ -50,6 +52,10 @@ natively), pnpm, Godot 4.4+ (`brew install --cask godot`) and Ollama.
 | Select an agent | Click it, or click its card in the roster (centres the camera) |
 | Approve | The dialog, or click the Human Approval building |
 | Abort a mission | **Abort** next to Deploy |
+
+| Agents at work (live Hermes run) | Mission complete, with a sourced report |
+|---|---|
+| ![](docs/screenshots/agents-working.png) | ![](docs/screenshots/mission-complete.png) |
 
 ## Models
 

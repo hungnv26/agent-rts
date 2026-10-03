@@ -42,7 +42,8 @@ if (env.MC_URL && env.MC_API_KEY && env.MC_SYNC !== "0") {
   sink = new MissionControlSink({
     url: env.MC_URL.replace(/\/$/, ""),
     apiKey: env.MC_API_KEY,
-    model: env.ADAPTER_MODEL_LABEL ?? "agentrts-qwen3",
+    // "ollama/" makes Mission Control price it as a (free) local provider.
+    model: env.ADAPTER_MODEL_LABEL ?? (sourceName === "fake" ? "simulated/fake-source" : "ollama/agentrts-qwen3"),
     onApproval: (id, approved) => void source.resolveApproval(id, approved),
   });
   await sink.start(world);
