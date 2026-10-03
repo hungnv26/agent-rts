@@ -1,17 +1,44 @@
 shader_type spatial;
 render_mode unshaded;
 
-// Mission-control ground: dark slate with a 1 m grid, a brighter 4 m grid, and a soft
-// glow over the playable area (0..play_size).
+// Mission-base ground: varied dark terrain, a fine grid inside the playable area, soft
+// coloured glow zones under each building, and a dusty, darker wasteland outside.
 
-uniform vec3 base_color : source_color = vec3(0.055, 0.075, 0.115);
-uniform vec3 line_color : source_color = vec3(0.22, 0.36, 0.55);
+uniform vec3 base_color : source_color = vec3(0.05, 0.07, 0.11);
+uniform vec3 dust_color : source_color = vec3(0.09, 0.08, 0.09);
+uniform vec3 line_color : source_color = vec3(0.22, 0.38, 0.6);
 uniform vec2 play_size = vec2(32.0, 32.0);
+// xy = centre (world x, z), z = radius, w = intensity
+uniform vec4 zones[8];
+uniform vec4 zone_colors[8];
+uniform int zone_count = 0;
 
 varying vec3 world_pos;
 
 void vertex() {
 	world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
+}
+
+float hash(vec2 p) {
+	return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+}
+
+float noise(vec2 p) {
+	vec2 i = floor(p);
+	vec2 f = fract(p);
+	vec2 u = f * f * (3.0 - 2.0 * f);
+	return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), u.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), u.x), u.y);
+}
+
+float fbm(vec2 p) {
+	float v = 0.0;
+	float a = 0.5;
+	for (int i = 0; i < 4; i++) {
+		v += a * noise(p);
+		p *= 2.03;
+		a *= 0.5;
+	}
+	return v;
 }
 
 float grid(vec2 p, float spacing, float width) {
@@ -24,11 +51,37 @@ float grid(vec2 p, float spacing, float width) {
 void fragment() {
 	vec2 p = world_pos.xz;
 	vec2 c = play_size * 0.5;
-	float inside = step(0.0, p.x) * step(0.0, p.y) * step(p.x, play_size.x) * step(p.y, play_size.y);
-	float glow = 1.0 - smoothstep(0.0, length(c) * 1.1, length(p - c));
-	vec3 col = base_color * (0.55 + 0.45 * inside) + vec3(0.02, 0.035, 0.06) * glow;
-	float minor = grid(p, 1.0, 1.0) * 0.18;
-	float major = grid(p, 4.0, 1.5) * 0.45;
-	col = mix(col, line_color, max(minor, major) * (0.35 + 0.65 * inside));
+
+	// Soft edge of the playable area (1 unit falloff).
+	vec2 d = max(vec2(0.0) - p, p - play_size);
+	float outside = clamp(max(d.x, d.y), 0.0, 6.0) / 6.0;
+	float inside = 1.0 - smoothstep(0.0, 1.0, max(d.x, d.y));
+
+	float n = fbm(p * 0.18);
+	float fine = fbm(p * 1.3);
+	vec3 col = mix(base_color * (0.75 + 0.5 * n), dust_color * (0.6 + 0.6 * fine), outside);
+
+	// Gentle light pool towards the centre of the base.
+	float glow = 1.0 - smoothstep(0.0, length(c) * 1.15, length(p - c));
+	col += vec3(0.015, 0.03, 0.055) * glow;
+
+	// Building zones.
+	for (int i = 0; i < zone_count; i++) {
+		float r = zones[i].z;
+		float dist = length(p - zones[i].xy);
+		float zone = 1.0 - smoothstep(r * 0.25, r, dist);
+		float ring = (1.0 - smoothstep(0.0, 0.08, abs(dist - r * 0.82))) * 0.5;
+		col += zone_colors[i].rgb * (zone * 0.10 + ring * 0.25) * zones[i].w;
+	}
+
+	// Grid only inside the base; major lines every 4 units.
+	float minor = grid(p, 1.0, 1.0) * 0.07;
+	float major = grid(p, 4.0, 1.5) * 0.22;
+	col = mix(col, line_color, max(minor, major) * inside);
+
+	// Base perimeter line.
+	float edge = (1.0 - smoothstep(0.0, 0.12, abs(max(d.x, d.y)))) * 0.8;
+	col = mix(col, vec3(0.35, 0.65, 1.0), edge);
+
 	ALBEDO = col;
 }

@@ -8,6 +8,7 @@ extends "res://source/match/units/Unit.gd"
 signal state_applied(agent)
 
 const Moving = preload("res://source/match/units/actions/Moving.gd")
+const Fx = preload("res://source/agent/Fx.gd")
 
 const MIN_DWELL_S = 1.2  # stay at least this long after arriving before walking on
 const MAX_TRAVEL_WAIT_S = 9.0  # don't let a stuck walk block the queue forever
@@ -42,18 +43,23 @@ var _name_label: Label3D
 var _thinking_ring: MeshInstance3D
 var _geometry: Node3D
 var _geometry_base_y = 0.0
+var _ring_mat: StandardMaterial3D
 
 
 func _ready():
 	await super()
 	_geometry = find_child("Geometry")
 	_geometry_base_y = _geometry.position.y
-	_name_label = _make_label(30, Vector3(0, 1.1, 0))
-	_name_label.offset = Vector2(0, 30)
+	_name_label = _make_label(26, Vector3(0, 1.1, 0))
+	_name_label.offset = Vector2(0, 40)
 	_name_label.text = display_name
 	_name_label.modulate = role_color.lightened(0.25)
-	_badge = _make_label(24, Vector3(0, 1.1, 0))
+	_badge = _make_label(20, Vector3(0, 1.1, 0))
 	_thinking_ring = _make_thinking_ring()
+	_ring_mat = Fx.additive(role_color, 0.35)
+	var ring = Fx.torus(0.55, 0.7, _ring_mat, 0.03)
+	ring.position.y = 0.05
+	add_child(ring)
 	_render_badge()
 
 
@@ -132,6 +138,12 @@ func _animate(delta, now):
 	if state == "working" and not _moving:
 		bob = 0.08 * abs(sin(now * 6.0))
 	_geometry.position.y = lerpf(_geometry.position.y, _geometry_base_y + bob, clampf(delta * 12.0, 0.0, 1.0))
+	var ring_alpha = 0.3
+	if state == "working" and not _moving:
+		ring_alpha = 0.55 + 0.3 * sin(now * 6.0)
+	elif state == "error":
+		ring_alpha = 0.4 + 0.4 * abs(sin(now * 5.0))
+	_ring_mat.albedo_color = Color(Color(1.0, 0.3, 0.3) if state == "error" else role_color, ring_alpha)
 	_thinking_ring.visible = state == "thinking"
 	if _thinking_ring.visible:
 		_thinking_ring.rotation.y = now * 3.0
@@ -151,16 +163,9 @@ func _render_badge_moving_prefix():
 
 
 func _make_label(font_size, pos):
-	var l = Label3D.new()
-	l.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	l.no_depth_test = true
-	l.fixed_size = true
-	l.pixel_size = 0.0008
-	l.font_size = font_size
-	l.outline_size = 8
-	l.outline_modulate = Color(0.04, 0.05, 0.09, 0.9)
+	var ui_scale = _match.ui_scale if "ui_scale" in _match else 1.0
+	var l = Fx.label(self, "", font_size, Color.WHITE, ui_scale, 0.0008)
 	l.position = pos
-	add_child(l)
 	return l
 
 

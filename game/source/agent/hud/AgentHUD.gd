@@ -59,6 +59,15 @@ func _ready():
 # ---------- public API (driven by AgentMatch) ----------
 
 
+# The layout is designed for a 1080p-tall window; on bigger screens the whole HUD is
+# drawn scaled instead of shrinking to a strip of tiny text.
+func set_ui_scale(s: float):
+	set_anchors_preset(PRESET_TOP_LEFT)
+	position = Vector2.ZERO
+	scale = Vector2(s, s)
+	size = get_viewport_rect().size / s
+
+
 func set_connection(online, source = ""):
 	if source != "":
 		_source = source
@@ -391,11 +400,13 @@ func _build_log():
 
 func _build_approval():
 	_approval_panel = _panel(BG_SOLID)
-	_approval_panel.set_anchors_and_offsets_preset(PRESET_CENTER)
-	_approval_panel.offset_left = -260
-	_approval_panel.offset_right = 260
-	_approval_panel.offset_top = -110
-	_approval_panel.offset_bottom = 110
+	# Top centre, under the mission bar, so the base (and the Reviewer walking to Human
+	# Approval) stays visible.
+	_approval_panel.set_anchors_and_offsets_preset(PRESET_CENTER_TOP)
+	_approval_panel.offset_left = -270
+	_approval_panel.offset_right = 270
+	_approval_panel.offset_top = 92
+	_approval_panel.offset_bottom = 250
 	_approval_panel.visible = false
 	(_approval_panel.get_theme_stylebox("panel") as StyleBoxFlat).border_color = Color(1.0, 0.55, 0.2)
 	(_approval_panel.get_theme_stylebox("panel") as StyleBoxFlat).set_border_width_all(2)

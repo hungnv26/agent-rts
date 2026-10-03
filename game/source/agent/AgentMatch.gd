@@ -9,6 +9,8 @@ const AgentScene = preload("res://source/agent/units/Agent.tscn")
 const BuildingScene = preload("res://source/agent/units/Building.tscn")
 const WorldClientScript = preload("res://source/agent/WorldClient.gd")
 const AgentHUDScript = preload("res://source/agent/hud/AgentHUD.gd")
+const WorldDecorScript = preload("res://source/agent/WorldDecor.gd")
+const Fx = preload("res://source/agent/Fx.gd")
 
 const CENTER = Vector3(16, 0, 16)
 const KENNEY = "res://assets/models/kenney-spacekit/"
@@ -18,35 +20,40 @@ const BUILDINGS = [
 		"label": "Command Centre",
 		"pos": Vector3(16, 0, 16),
 		"model": "res://source/match/units/structure-geometries/CommandCenter.tscn",
-		"size": 3.6,
+		"size": 4.2,
+		"accent": Color(0.4, 0.8, 1.0),
 	},
 	{
 		"id": "research_lab",
 		"label": "Research Lab",
 		"pos": Vector3(6.5, 0, 6.5),
 		"model": KENNEY + "satelliteDish_large.glb",
-		"size": 3.0,
+		"size": 3.6,
+		"accent": Color(0.35, 0.75, 1.0),
 	},
 	{
 		"id": "code_factory",
 		"label": "Code Factory",
 		"pos": Vector3(25.5, 0, 6.5),
 		"model": KENNEY + "hangar_largeA.glb",
-		"size": 3.4,
+		"size": 3.8,
+		"accent": Color(1.0, 0.6, 0.25),
 	},
 	{
 		"id": "knowledge_library",
 		"label": "Knowledge Library",
 		"pos": Vector3(6.5, 0, 25.5),
 		"model": KENNEY + "hangar_roundGlass.glb",
-		"size": 3.2,
+		"size": 3.6,
+		"accent": Color(0.45, 0.95, 0.6),
 	},
 	{
 		"id": "human_approval",
 		"label": "Human Approval",
 		"pos": Vector3(25.5, 0, 25.5),
 		"model": KENNEY + "gate_complex.glb",
-		"size": 3.2,
+		"size": 3.6,
+		"accent": Color(0.85, 0.55, 1.0),
 	},
 ]
 const SPOTS = {
@@ -75,9 +82,15 @@ var _buildings = {}
 var _client = null
 var _hud = null
 var _first_snapshot = true
+var _decor = null
+var _pending_approvals = {}
+var _mission_id = ""
+var ui_scale = 1.0
+var mission_running = false
 
 
 func _ready():
+	ui_scale = _compute_ui_scale()
 	for path in RTS_ONLY_NODES:
 		var node = get_node_or_null(path)
 		if node != null:
@@ -89,6 +102,7 @@ func _ready():
 		building.label = b["label"]
 		building.model_path = b["model"]
 		building.model_size = b["size"]
+		building.accent = b["accent"]
 		building.position = b["pos"]
 		human.add_child(building)
 		_buildings[b["id"]] = building
@@ -103,7 +117,16 @@ func _ready():
 		human.add_child(agent)
 		_agents[r["id"]] = agent
 	super()
-	_build_spots()
+	_decor = WorldDecorScript.new()
+	_decor.center = CENTER
+	_decor.ui_scale = ui_scale
+	for b in BUILDINGS:
+		_decor.buildings[b["id"]] = {"pos": b["pos"], "accent": b["accent"], "size": b["size"]}
+	for id in SPOTS:
+		_decor.spots[id] = {"pos": SPOTS[id]["pos"], "color": SPOTS[id]["color"], "label": SPOTS[id]["label"]}
+	add_child(_decor)
+	_decor.build(map.find_child("Terrain").mesh.material)
+	_decor.apply_glow($WorldEnvironment, $DirectionalLight3D)
 	_hud = AgentHUDScript.new()
 	$HUD.add_child(_hud)
 	_client = WorldClientScript.new()
@@ -118,10 +141,12 @@ func _ready():
 	_hud.agent_focus_requested.connect(_focus_agent)
 	_hud.set_connection(false)
 	MatchSignals.unit_selected.connect(_on_unit_selected)
+	get_viewport().size_changed.connect(_apply_ui_scale)
+	_apply_ui_scale.call_deferred()
 	_setup_capture()
 
 
-func _process(_delta):
+func _process(delta):
 	# Buildings glow while an agent is working inside.
 	for b in _buildings.values():
 		for agent in _agents.values():
@@ -129,6 +154,27 @@ func _process(_delta):
 				agent.agent_id,
 				agent.state == "working" and agent.location == b.building_id and not agent.is_moving()
 			)
+	_buildings["human_approval"].alert = not _pending_approvals.is_empty()
+	if _decor != null:
+		_decor.update_world(_agents.values(), delta)
+
+
+# HUD and labels are designed for a 1080p-tall window; scale them up on 4K/5K screens.
+func _compute_ui_scale():
+	var h = get_viewport().get_visible_rect().size.y
+	return clampf(h / 1080.0, 1.0, 3.0)
+
+
+func _apply_ui_scale():
+	ui_scale = _compute_ui_scale()
+	if _hud != null:
+		_hud.set_ui_scale(ui_scale)
+	var minimap = get_node_or_null("HUD/MarginContainer")
+	if minimap != null:
+		minimap.pivot_offset = Vector2(0, minimap.size.y)
+		minimap.scale = Vector2(ui_scale, ui_scale)
+	for l in get_tree().get_nodes_in_group(Fx.LABEL_GROUP):
+		l.pixel_size = l.get_meta("base_px", 0.0008) * ui_scale
 
 
 # Where an agent stands at a location. Each agent has a fixed slot so they never stack.
@@ -144,9 +190,9 @@ func _target_for(location, agent_id):
 		return CENTER
 	if location == "command_centre":
 		var angle = PI * 0.25 + idx * PI * 0.5
-		return b["pos"] + Vector3(cos(angle), 0, sin(angle)) * 3.4
+		return b["pos"] + Vector3(cos(angle), 0, sin(angle)) * 3.9
 	var dir = (CENTER - b["pos"]).normalized()
-	var door = b["pos"] + dir * 3.0
+	var door = b["pos"] + dir * 3.3
 	var perp = Vector3(-dir.z, 0, dir.x)
 	return door + perp * (idx - 1.5) * 0.95
 
@@ -167,18 +213,55 @@ func _on_message(msg):
 			for a in world.get("agents", []):
 				_apply_agent(a, _first_snapshot)
 			_first_snapshot = false
+			_pending_approvals.clear()
+			for ap in world.get("approvals", []):
+				if ap.get("status") == "pending":
+					_pending_approvals[ap["id"]] = true
+			var m = world.get("mission")
+			if m != null:
+				_mission_id = m.get("id", "")
+				mission_running = m.get("status") in ["planning", "running"]
 		"agent.state":
 			_apply_agent(msg["agent"], false)
 		"task.upsert":
 			_hud.set_task(msg["task"])
 		"mission.upsert":
 			_hud.set_mission(msg["mission"])
+			_on_mission_fx(msg["mission"])
 		"approval.upsert":
 			_hud.set_approval(msg["approval"])
+			var ap = msg["approval"]
+			if ap.get("status") == "pending":
+				_pending_approvals[ap["id"]] = true
+			else:
+				_pending_approvals.erase(ap["id"])
 		"resource.update":
 			_hud.set_resources(msg["resources"])
 		"log":
 			_hud.add_log(msg["line"])
+
+
+# Mission start/end shows up on the Command Centre: a pulse, plus a burst on success.
+func _on_mission_fx(m):
+	if m == null:
+		return
+	var cc = _buildings["command_centre"]
+	var status = m.get("status", "")
+	var is_new = m.get("id", "") != _mission_id
+	_mission_id = m.get("id", "")
+	if is_new:
+		_pending_approvals.clear()
+	mission_running = status == "planning" or status == "running"
+	if is_new and mission_running:
+		cc.set_pulse_color(Color(0.4, 0.8, 1.0))
+		cc.pulse()
+	elif status == "completed":
+		cc.set_pulse_color(Color(0.4, 1.0, 0.55))
+		cc.pulse()
+		_decor.burst(Color(0.45, 1.0, 0.6))
+	elif status == "failed":
+		cc.set_pulse_color(Color(1.0, 0.35, 0.3))
+		cc.pulse()
 
 
 func _apply_agent(a, snap):
@@ -211,47 +294,6 @@ func _focus_agent(agent_id):
 	MatchSignals.deselect_all_units.emit()
 	agent.find_child("Selection").select()
 	_camera.set_position_safely(agent.global_position)
-
-
-func _build_spots():
-	for id in SPOTS:
-		var spot = SPOTS[id]
-		var disc = MeshInstance3D.new()
-		var mesh = CylinderMesh.new()
-		mesh.top_radius = 2.0
-		mesh.bottom_radius = 2.0
-		mesh.height = 0.02
-		disc.mesh = mesh
-		var mat = StandardMaterial3D.new()
-		mat.albedo_color = Color(spot["color"], 0.05)
-		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-		mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-		disc.material_override = mat
-		disc.position = spot["pos"] + Vector3(0, 0.02, 0)
-		add_child(disc)
-		var ring = MeshInstance3D.new()
-		var torus = TorusMesh.new()
-		torus.inner_radius = 1.92
-		torus.outer_radius = 2.05
-		ring.mesh = torus
-		var ring_mat = mat.duplicate()
-		ring_mat.albedo_color = Color(spot["color"], 0.7)
-		ring.material_override = ring_mat
-		ring.scale = Vector3(1, 0.05, 1)
-		ring.position = spot["pos"] + Vector3(0, 0.03, 0)
-		add_child(ring)
-		var l = Label3D.new()
-		l.text = spot["label"]
-		l.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-		l.no_depth_test = true
-		l.fixed_size = true
-		l.pixel_size = 0.0008
-		l.font_size = 24
-		l.outline_size = 8
-		l.modulate = spot["color"]
-		l.outline_modulate = Color(0.04, 0.05, 0.09, 0.9)
-		l.position = spot["pos"] + Vector3(0, 0.3, -2.2)
-		add_child(l)
 
 
 # Dev aid: --capture-dir=DIR --capture-at=5,12,20 [--quit-after-capture]
