@@ -60,6 +60,7 @@ export interface Mission {
   result: string | null;
   startedAt: number;
   endedAt: number | null;
+  link?: string | null; // deep link to this mission in Mission Control, when mirrored
 }
 
 export interface Approval {

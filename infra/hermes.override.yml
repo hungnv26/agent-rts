@@ -4,7 +4,7 @@ services:
   backend:
     container_name: agentrts-hermes
     ports: !override
-      - "127.0.0.1:8000:8000"
+      - "127.0.0.1:8100:8000" # 8100 on the host: 8000 is a common dev port
     environment:
       - SEARXNG_URL=http://searxng:8080
     # Upstream also mounts /var/run/docker.sock. No production code uses it, and with the

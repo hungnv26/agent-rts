@@ -2,7 +2,7 @@
 //   node scripts/capture-hermes.ts "Research the Australian EV market" > ../captures/run.jsonl
 import WebSocket from "ws";
 
-const base = process.env.HERMES_WS ?? "ws://127.0.0.1:8000/api/ws";
+const base = process.env.HERMES_WS ?? "ws://127.0.0.1:8100/api/ws";
 const token = process.env.HERMES_TOKEN ?? "dev_master_token";
 const prompt = process.argv[2] ?? "Research the Australian EV market";
 const chatId = process.env.CHAT_ID ?? "jarvis";

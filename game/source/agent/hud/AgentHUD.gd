@@ -167,7 +167,11 @@ func set_resources(r):
 		_tokens_label.text = "Tokens %s" % _fmt_int(used)
 		_tokens_bar.visible = false
 	var cost = float(r.get("costUsd", 0.0))
-	_cost_label.text = "Cost $%.4f" % cost
+	var cost_budget = r.get("costBudgetUsd")
+	if cost_budget != null and float(cost_budget) > 0:
+		_cost_label.text = "Cost $%.4f / $%.2f" % [cost, float(cost_budget)]
+	else:
+		_cost_label.text = "Cost $%.4f" % cost
 
 
 func add_log(line):
@@ -441,7 +445,7 @@ func _build_result():
 	row.alignment = BoxContainer.ALIGNMENT_END
 	row.add_theme_constant_override("separation", 10)
 	var mc = _button("Open in Mission Control")
-	mc.pressed.connect(func(): OS.shell_open(_mc_url + "/tasks"))
+	mc.pressed.connect(func(): OS.shell_open(_mission_link()))
 	mc.visible = false
 	_result_panel.set_meta("mc_button", mc)
 	var copy = _button("Copy")
@@ -455,6 +459,12 @@ func _build_result():
 
 
 # ---------- behaviour ----------
+
+
+func _mission_link():
+	if _mission != null and _mission.get("link") != null and _mission.get("link") != "":
+		return _mission["link"]
+	return _mc_url + "/tasks"
 
 
 func _on_deploy():
