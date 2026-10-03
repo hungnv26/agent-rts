@@ -1,0 +1,32 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="PackedScene" path="res://source/match/Map.tscn" id="1_map"]
+[ext_resource type="Shader" path="res://source/agent/ground.gdshader" id="2_ground"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_ground"]
+shader = ExtResource("2_ground")
+
+[sub_resource type="PlaneMesh" id="PlaneMesh_agent"]
+resource_local_to_scene = true
+material = SubResource("ShaderMaterial_ground")
+size = Vector2(36, 36)
+center_offset = Vector3(16, 0, 16)
+
+[sub_resource type="PlaneMesh" id="PlaneMesh_backdrop"]
+material = SubResource("ShaderMaterial_ground")
+size = Vector2(140, 140)
+center_offset = Vector3(16, 0, 16)
+
+[node name="Map" instance=ExtResource("1_map")]
+size = Vector2(32, 32)
+
+[node name="Terrain" parent="Geometry" index="1"]
+mesh = SubResource("PlaneMesh_agent")
+
+[node name="Backdrop" type="MeshInstance3D" parent="Geometry"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.03, 0)
+cast_shadow = 0
+mesh = SubResource("PlaneMesh_backdrop")
+
+[node name="Marker3D" type="Marker3D" parent="SpawnPoints" index="0"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 16, 0, 16)
