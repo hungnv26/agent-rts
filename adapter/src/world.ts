@@ -23,15 +23,15 @@ const REPLAY_KEEP = 5; // missions kept for replay
 const REPLAY_TAIL_MS = 6000; // keep recording this long after a mission ends (agents walk home)
 const RECORDED = new Set(["agent.state", "task.upsert", "mission.upsert", "approval.upsert", "log", "resource.update"]);
 
-// Where an agent stands for a given state. `building` only matters while working; without
-// one the agent works at its home building.
+// Where an agent stands for a given state. Idle and finished agents wait at their home
+// building; `building` only matters while working (default: the home building).
 export function locationFor(state: AgentState, home: BuildingId, building?: BuildingId | null, current?: LocationId): LocationId {
   switch (state) {
     case "idle":
     case "complete":
-      return "command_centre";
+      return home;
     case "thinking":
-      return current ?? "command_centre";
+      return current ?? home;
     case "working":
       return building ?? home;
     case "waiting":
@@ -78,7 +78,7 @@ export class World extends EventEmitter {
   }
 
   private newAgent(id: string, name: string, role: string): Agent {
-    return { id, name, role, state: "idle", location: "command_centre", taskId: null, taskTitle: null, detail: null, progress: null, updatedAt: this.now() };
+    return { id, name, role, state: "idle", location: homeOf(this.layout, id), taskId: null, taskTitle: null, detail: null, progress: null, updatedAt: this.now() };
   }
 
   // Adopt an edited layout: add/remove/rename agents, send idle anyone whose spot vanished.
@@ -98,6 +98,10 @@ export class World extends EventEmitter {
       if (!cur) {
         this.agents.set(def.id, this.newAgent(def.id, def.name, "custom"));
         this.emitEvent({ type: "agent.state", agent: this.agents.get(def.id)! });
+      } else if (cur.state === "idle" && cur.location !== homeOf(layout, def.id)) {
+        // Home changed (or vanished): walk to the new one.
+        cur.name = def.name;
+        this.setAgent(def.id, { state: "idle" });
       } else if (cur.name !== def.name || !places.has(cur.location)) {
         cur.name = def.name;
         if (!places.has(cur.location)) this.setAgent(def.id, { state: "idle" });

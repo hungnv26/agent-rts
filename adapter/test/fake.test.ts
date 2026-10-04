@@ -66,7 +66,10 @@ test("cancel resets agents and marks mission cancelled", async () => {
   await until(() => world.getAgent("researcher")!.state === "working");
   await src.cancelMission();
   assert.equal(world.getMission()?.status, "cancelled");
-  assert.ok(world.snapshot().agents.every((a) => a.state === "idle" && a.location === "command_centre"));
+  // Idle agents wait at their home building.
+  assert.ok(world.snapshot().agents.every((a) => a.state === "idle"));
+  assert.equal(world.getAgent("researcher")!.location, "research_lab");
+  assert.equal(world.getAgent("commander")!.location, "command_centre");
 });
 
 test("missions are recorded for replay, including the walk home", async () => {

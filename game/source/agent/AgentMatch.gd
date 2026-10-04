@@ -257,7 +257,7 @@ func _apply_layout(layout: Dictionary):
 			pos = node.global_position
 			node.queue_free()
 		var agent = _make_agent(def)
-		var at = pos if pos != null else _target_for("command_centre", def["id"])
+		var at = pos if pos != null else _target_for(def.get("home", "command_centre"), def["id"])
 		_setup_and_spawn_unit(agent, Transform3D(Basis(), at), human, false)
 		_agents[def["id"]] = agent
 		if not data.is_empty():

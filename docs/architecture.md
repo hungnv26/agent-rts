@@ -52,7 +52,7 @@ returns the snapshot.
 | `waiting` | Rally Point | Blocked on another agent (fake source) |
 | `approval` | Human Approval | The final report is waiting for a person |
 | `error` | Repair Bay | A step failed |
-| `complete` / `idle` | Command Centre | Step finished / mission over |
+| `complete` / `idle` | the agent's home building | Step finished / mission over |
 
 Agents map from Hermes as follows: the orchestrator (`jarvis`) → Commander, `research` →
 Researcher, `scout` → Scout, `insights` → Analyst (reasoning only), `code` → Coder,
