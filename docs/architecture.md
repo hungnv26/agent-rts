@@ -95,7 +95,7 @@ The adapter owns the base layout (`adapter/src/layout.ts`, saved to `.data/base.
 buildings (position, model, colour, capability), the two spots, and the characters. A
 building's capability is its department (Command, Research, Engineering, Knowledge, Commons),
 which sets its colour and its district: the map is a 3×3 grid of districts with 2×2 slots on
-a 5-unit lattice, and `layout.organise` moves every building into its district's slots. The
+a 7-unit lattice on a 44-unit map, and `layout.organise` moves every building into its district's slots. The
 snapshot carries it, and edits arrive as `layout.*` commands (`building.upsert/remove`,
 `spot.move`, `agent.upsert/remove`, `organise`, `terrain`, `reset`). They are validated (map bounds, spacing,
 limits, core buildings and the core team can't be deleted), applied to the world (agents

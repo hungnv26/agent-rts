@@ -92,8 +92,9 @@ the same way.
   building back into its district. A tool call sends a character to a building of the matching
   department, preferring its own home. Any building, the Rally Point and the Repair Bay can be
   moved; your own buildings can be removed (the Command Centre and Human Approval are
-  permanent). The base holds up to 32 buildings (the districts' slots), at least 4.5 units
-  apart. Models: every standalone building in the Kenney Space Kit, Open RTS's
+  permanent). The map is 44×44; district slots are 7 units apart, so every building has room
+  in front for its characters, who park at its door. The base holds up to 32 buildings (the
+  districts' slots); a spot you choose yourself must be at least 4.5 units from others. Models: every standalone building in the Kenney Space Kit, Open RTS's
   own Vehicle Factory, Aircraft Factory and turrets, and a Rocket assembled from the kit's
   rocket parts.
 - **Characters:** create one with a name, a job description, a skill (web research or thinking
