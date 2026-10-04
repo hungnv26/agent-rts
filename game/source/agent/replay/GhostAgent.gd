@@ -14,6 +14,7 @@ var display_name = ""
 var role_color = Color.WHITE
 var model_path = ROVER
 var model_size = 1.1
+var model_height = 0.0  # characters are fitted by height
 var state = "idle"
 var location = "command_centre"
 var data = {}
@@ -33,7 +34,7 @@ func setup(ui_scale: float):
 	_holo.albedo_color = Color(role_color.lightened(0.15), 0.7)
 	_holo.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	_holo.roughness = 0.8
-	_model = Fx.fitted(model_path, model_size)
+	_model = Fx.fitted(model_path, model_size, model_height)
 	for mi in _model.find_children("*", "MeshInstance3D", true, false):
 		mi.material_override = _holo
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF

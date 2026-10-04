@@ -6,6 +6,8 @@ extends "res://source/match/Match.gd"
 # player's layout, owned by the adapter and edited in Build mode; this scene reconciles the
 # map with it whenever it changes.
 
+const Models = preload("res://source/agent/Models.gd")
+const CHARACTER_HEIGHT = 1.7  # animated characters are fitted by height
 const SceneryScript = preload("res://source/agent/Scenery.gd")
 const HudUi = preload("res://source/agent/hud/Ui.gd")
 const Departments = preload("res://source/agent/Departments.gd")
@@ -174,27 +176,13 @@ func _spot_pos(id) -> Variant:
 	return null
 
 
-# Layout model names -> loadable paths ("composite:" ones are assembled in Composites.gd).
-const COMPOSITE_MODELS = {
-	"VehicleFactory": "composite:vehicle_factory",
-	"AircraftFactory": "composite:aircraft_factory",
-	"AntiGroundTurret": "composite:anti_ground_turret",
-	"AntiAirTurret": "composite:anti_air_turret",
-	"Rocket": "composite:rocket",
-	"Tank": "composite:tank",
-	"MonorailTrain": "composite:monorail_train",
-}
-
-
 static func _model_path(model_name: String) -> String:
-	if model_name == "CommandCenter":
-		return COMMAND_CENTRE_SCENE
-	if COMPOSITE_MODELS.has(model_name):
-		return COMPOSITE_MODELS[model_name]
-	return KENNEY + model_name + ".glb"
+	return Models.path(model_name)
 
 
 static func _vehicle_size(model_name: String) -> float:
+	if Models.is_character(model_name):
+		return 0.9
 	if model_name.begins_with("craft_cargo") or model_name == "MonorailTrain":
 		return 2.2
 	if model_name == "Tank":
@@ -213,6 +201,7 @@ func _roster() -> Array:
 		out.append({
 			"id": a["id"], "name": a["name"], "color": Color.html(a["color"]),
 			"model": _model_path(a["model"]), "size": _vehicle_size(a["model"]),
+			"height": CHARACTER_HEIGHT if Models.is_character(a["model"]) else 0.0,
 		})
 	return out
 
@@ -238,6 +227,7 @@ func _make_agent(def: Dictionary):
 	agent.role_color = Color.html(def["color"])
 	agent.model_path = _model_path(def["model"])
 	agent.model_size = _vehicle_size(def["model"])
+	agent.model_height = CHARACTER_HEIGHT if Models.is_character(def["model"]) else 0.0
 	agent.resolve_target = _target_for
 	agent.state_applied.connect(_on_agent_state_applied)
 	agent.set_meta("sig", _sig(def, ["name", "model", "color"]))

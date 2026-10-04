@@ -74,8 +74,16 @@ func _pump():
 
 func _build_portrait(model_path: String, tint: Color) -> Node3D:
 	var root = Node3D.new()
-	var model = Fx.fitted(model_path, 1.6)
+	var character = model_path.get_file().get_basename() in preload("res://source/agent/Models.gd").CHARACTERS
+	var model = Fx.fitted(model_path, 1.6, 1.6 if character else 0.0)
 	root.add_child(model)
+	# Characters are posed (their idle animation) rather than shown in their bind pose.
+	for ap in model.find_children("*", "AnimationPlayer", true, false):
+		for full in ap.get_animation_list():
+			if full.ends_with("Idle"):
+				ap.play(full)
+				ap.advance(0.4)
+				break
 	_paint_trim(model, tint)
 	var h = model.get_meta("height", 1.0)
 	var cam = Camera3D.new()

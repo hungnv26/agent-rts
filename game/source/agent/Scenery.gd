@@ -17,9 +17,9 @@ const SETS = {
 	"canyon": {"items": [["mesa", 0.25], ["rocklarge", 0.35], ["rock", 0.25], ["cactus", 0.15]], "count": 170, "foliage": [Color(0.35, 0.48, 0.25)]},
 	"mars": {"items": [["rock", 0.55], ["rocklarge", 0.3], ["crater", 0.08], ["meteor", 0.07]], "count": 170},
 	"moon": {"items": [["crater", 0.25], ["rock", 0.5], ["meteor", 0.25]], "count": 190},
-	"venus": {"items": [["rocklarge", 0.4], ["rock", 0.45], ["meteor", 0.15]], "count": 160},
+	"venus": {"items": [["rocklarge", 0.35], ["rock", 0.4], ["meteor", 0.1], ["alientree", 0.15]], "count": 170},
 	"europa": {"items": [["crystal", 0.35], ["rock", 0.35], ["crater", 0.3]], "count": 180},
-	"titan": {"items": [["rock", 0.5], ["rocklarge", 0.3], ["crater", 0.2]], "count": 160},
+	"titan": {"items": [["rock", 0.45], ["rocklarge", 0.25], ["crater", 0.12], ["alientree", 0.18]], "count": 170},
 }
 const ROCK_TINT = {
 	"grassland": Color(0.62, 0.62, 0.6), "sahara": Color(0.85, 0.66, 0.45), "arctic": Color(0.8, 0.84, 0.9),
@@ -128,12 +128,14 @@ func _parts(kind: String, foliage: Array, rock_tint: Color) -> Array:
 			return _kit("meteor_half", rock_tint)
 		"crystal":
 			return _kit("rock_crystals", Color(0, 0, 0, 0))
+		"alientree":
+			return _kit("res://assets/models/quaternius-space/TreeSpiral_A.glb", Color(0, 0, 0, 0))
 	return []
 
 
 # A Space Kit model's meshes, recoloured to the terrain's rock colour (tint alpha 0 keeps it).
 func _kit(model: String, tint: Color) -> Array:
-	var scene = load(KIT + model + ".glb").instantiate()
+	var scene = load(model if model.begins_with("res://") else KIT + model + ".glb").instantiate()
 	var out = []
 	for mi in scene.find_children("*", "MeshInstance3D", true, false):
 		var rel = Transform3D.IDENTITY

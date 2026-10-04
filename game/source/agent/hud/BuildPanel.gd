@@ -12,10 +12,10 @@ const Departments = preload("res://source/agent/Departments.gd")
 const CAPABILITIES = [["Research", "research"], ["Engineering", "code"], ["Knowledge", "knowledge"], ["Commons", "meeting"]]
 # Models that look the part for each department, offered first.
 const SUGGESTED = {
-	"research": ["satelliteDish_large", "satelliteDish_detailed", "satelliteDish", "AircraftFactory", "AntiAirTurret", "machine_wireless", "Rocket", "rocket_baseA"],
-	"code": ["hangar_largeA", "hangar_largeB", "VehicleFactory", "machine_generatorLarge", "machine_generator", "structure_diagonal", "machine_barrelLarge"],
-	"knowledge": ["hangar_roundGlass", "hangar_roundA", "hangar_roundB", "hangar_smallA", "hangar_smallB", "structure_closed", "machine_wirelessCable"],
-	"meeting": ["structure_detailed", "structure", "gate_simple", "gate_complex", "turret_double", "turret_single", "AntiGroundTurret", "machine_barrel"],
+	"research": ["lander_A", "lander_B", "GeodesicDome", "SolarPanelStructure", "solarpanel", "satelliteDish_large", "satelliteDish_detailed", "satelliteDish", "AircraftFactory", "Rocket"],
+	"code": ["cargodepot_A", "cargodepot_B", "cargodepot_C", "drill_structure", "structure_tall", "basemodule_garage", "windturbine_tall", "BuildingL", "VehicleFactory", "machine_generatorLarge"],
+	"knowledge": ["basemodule_A", "basemodule_B", "basemodule_C", "basemodule_D", "basemodule_E", "HouseCylinder", "HouseLong", "hangar_roundGlass", "hangar_roundA"],
+	"meeting": ["landingpad_large", "structure_low", "containers_A", "BaseLarge", "HouseSingle", "structure_detailed", "gate_simple", "gate_complex", "AntiGroundTurret"],
 }
 const CAPABILITY_TEXT = {
 	"command": "Command", "research": "Web research", "code": "Code & data", "knowledge": "Knowledge & notes",
@@ -30,11 +30,17 @@ const BUILDING_MODELS = [
 	"rocket_baseA", "turret_double",
 	"VehicleFactory", "AircraftFactory", "AntiGroundTurret", "AntiAirTurret", "turret_single", "satelliteDish",
 	"structure_diagonal", "machine_generator", "machine_wireless", "machine_wirelessCable", "machine_barrel", "Rocket",
+	"basemodule_A", "basemodule_B", "basemodule_C", "basemodule_D", "basemodule_E", "basemodule_garage",
+	"cargodepot_A", "cargodepot_B", "cargodepot_C", "drill_structure", "lander_A", "lander_B",
+	"landingpad_large", "structure_low", "structure_tall", "windturbine_tall", "containers_A", "solarpanel",
+	"GeodesicDome", "BaseLarge", "BuildingL", "HouseCylinder", "HouseLong", "HouseSingle", "SolarPanelStructure",
 ]
 const VEHICLE_MODELS = [
 	"rover", "craft_speederA", "craft_speederB", "craft_speederC", "craft_speederD", "craft_racer",
 	"craft_miner", "craft_cargoA", "craft_cargoB", "astronautA", "astronautB", "alien",
 	"Tank", "MonorailTrain",
+	"Astronaut_A", "Astronaut_B", "Astronaut_C", "Mech_A", "Mech_B", "Mech_C", "Mech_D",
+	"EnemyLarge", "EnemySmall", "EnemyFlying", "Rover_A", "RoundRover",
 ]
 const PALETTE = ["#59ccff", "#ffe04d", "#8cf280", "#ff9940", "#ff80bf", "#d98cff", "#ff5c5c", "#e6e6e6"]
 

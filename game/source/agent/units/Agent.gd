@@ -29,6 +29,7 @@ var display_name = ""
 var role_color = Color.WHITE
 var model_path = ""  # vehicle model; replaces the default rover
 var model_size = 1.15
+var model_height = 0.0  # > 0: an animated character, fitted to this height
 # Callable(location_id: String, agent_id: String) -> Vector3
 var resolve_target: Callable
 
@@ -48,6 +49,9 @@ var _geometry_base_y = 0.0
 var _hidden = false
 var _label_y = 1.35
 var _label_back = 0.8  # labels sit screen-up (north) of the vehicle, clear of its body
+var _anim: AnimationPlayer  # animated characters only
+var _anim_names = {}  # role (idle, walk, run, work, call, yes, no) -> animation name
+var _anim_current = ""
 var _route: MeshInstance3D  # dashed line to where the agent is going, in its colour
 var _route_mesh: ImmediateMesh
 
@@ -58,8 +62,9 @@ func _ready():
 		for child in geometry.get_children():
 			geometry.remove_child(child)
 			child.queue_free()
-		var vehicle = Fx.fitted(model_path, model_size)
+		var vehicle = Fx.fitted(model_path, model_size, model_height)
 		geometry.add_child(vehicle)
+		_setup_animations(vehicle)
 		_label_y = vehicle.get_meta("height", 1.0) + 0.35  # just above the roof
 		_label_back = model_size * 0.5 + 0.25
 	await super()
@@ -72,6 +77,7 @@ func _ready():
 	_badge = _make_label(20, Vector3(0, _label_y, 0))
 	_thinking_ring = _make_thinking_ring()
 	_make_route()
+	_make_ring()
 	_render_badge()
 
 
@@ -159,8 +165,9 @@ func _render_badge():
 func _animate(delta, now):
 	if _geometry == null:
 		return
+	_play_for_state()
 	var bob = 0.0
-	if state == "working" and not _moving:
+	if _anim == null and state == "working" and not _moving:
 		bob = 0.08 * abs(sin(now * 6.0))
 	_geometry.position.y = lerpf(_geometry.position.y, _geometry_base_y + bob, clampf(delta * 12.0, 0.0, 1.0))
 
@@ -199,6 +206,79 @@ func _place_labels():
 		_name_label.global_position = p
 	if _badge != null:
 		_badge.global_position = p
+
+
+# Characters act out the agent's state: walk or run while travelling, a working loop at a
+# building, wave for attention (approval, waiting), shake the head after an error.
+const ANIM_ROLES = {
+	"idle": ["Idle", "Flying_Idle"],
+	"walk": ["Walk", "Fast_Flying"],
+	"run": ["Run", "Fast_Flying"],
+	"work": ["Pickup", "Yes", "Punch"],
+	"call": ["Wave", "Hello", "Yes"],
+	"no": ["No"],
+	"yes": ["Yes", "Hello", "Wave"],
+}
+
+
+func _setup_animations(model: Node3D):
+	var players = model.find_children("*", "AnimationPlayer", true, false)
+	if players.is_empty():
+		return
+	_anim = players[0]
+	var names = {}
+	for full in _anim.get_animation_list():
+		names[full.get_slice("|", full.get_slice_count("|") - 1)] = full
+	for role in ANIM_ROLES:
+		for short in ANIM_ROLES[role]:
+			if names.has(short):
+				_anim_names[role] = names[short]
+				break
+	for role in ["idle", "walk", "run", "work", "call", "no"]:
+		if _anim_names.has(role):
+			_anim.get_animation(_anim_names[role]).loop_mode = Animation.LOOP_LINEAR
+
+
+func _play_for_state():
+	if _anim == null:
+		return
+	var role = "idle"
+	if _moving:
+		role = "run" if global_position.distance_to(_route_end()) > 8.0 else "walk"
+	else:
+		match state:
+			"working", "thinking":
+				role = "work" if state == "working" else "idle"
+			"approval", "waiting":
+				role = "call"
+			"error":
+				role = "no"
+			"complete":
+				role = "yes"
+	var anim_name = _anim_names.get(role, _anim_names.get("idle", ""))
+	if anim_name != "" and anim_name != _anim_current:
+		_anim_current = anim_name
+		_anim.play(anim_name, 0.25)
+
+
+func _route_end() -> Vector3:
+	var nav = find_child("Movement")
+	if nav != null:
+		var path = nav.get_current_navigation_path()
+		if path.size() > 0:
+			return path[path.size() - 1]
+	return global_position
+
+
+# A thin ring in the agent's colour at its feet: who is who, at a glance.
+func _make_ring():
+	var mat = StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.albedo_color = role_color
+	var r = max(0.45, model_size * 0.45)
+	var ring = Fx.torus(r - 0.06, r, mat, 0.04)
+	ring.position = Vector3(0, 0.05, 0)
+	add_child(ring)
 
 
 func _make_route():

@@ -60,6 +60,29 @@ ahead, or **▶ Replay** in the report to watch it again.
 Prerequisites: Docker (Colima with 6 GB is enough), Node 23.6+ (the adapter runs TypeScript
 natively), pnpm, Godot 4.4+ (`brew install --cask godot`) and Ollama.
 
+### The screen
+
+The base is seen diagonally, framed by scenery that suits the terrain (forest and a lake on
+Grassland, cacti in the Sahara, rocks and craters on the planets). Everything on screen comes
+from the live world state:
+
+- **Top bar:** tabs (Mission, Departments, Build, Settings), tokens and cost against the
+  budget, connection, and a clock.
+- **Mission tab (left):** type a mission and press Deploy; the running mission with its
+  progress, recent finished missions (click one to reopen its report), the mission's task
+  checklist as the Commander creates and finishes tasks, and an activity feed.
+- **Agents (right):** a card per character with a portrait rendered from its own model, its
+  state, current task and progress, grouped by department.
+- **Selected agent (bottom centre):** click a card or a character: portrait, department, state,
+  task, progress, job, and Focus / Home / Edit.
+- **Selected building (bottom right):** click a building: what its department does, who is
+  working there right now (with progress), who lives there; Human Approval requests can be
+  approved or rejected right there.
+- **Map:** buildings carry name plates with their department icon; characters have a ring in
+  their colour at their feet and walk, work, wave for approval and shake their head after an
+  error; a dashed line in the agent's colour shows where a moving agent is going.
+- **Minimap (bottom left):** with buttons to show the whole base and zoom in or out.
+
 ### Build mode
 
 Click **Build** (top right) to design your own base. Everything you build does real work.
@@ -94,11 +117,13 @@ the same way.
   moved; your own buildings can be removed (the Command Centre and Human Approval are
   permanent). The map is 44×44; district slots are 7 units apart, so every building has room
   in front for its characters, who park at its door. The base holds up to 32 buildings (the
-  districts' slots); a spot you choose yourself must be at least 4.5 units from others. Models: every standalone building in the Kenney Space Kit, Open RTS's
-  own Vehicle Factory, Aircraft Factory and turrets, and a Rocket assembled from the kit's
-  rocket parts.
+  districts' slots); a spot you choose yourself must be at least 4.5 units from others. Models: KayKit Space Base Bits (domes, depots, drills,
+  landers, landing pads, turbines), Quaternius buildings (geodesic dome, houses, base), every
+  standalone building in the Kenney Space Kit, Open RTS's own Vehicle Factory, Aircraft
+  Factory and turrets, and a Rocket assembled from the kit's rocket parts.
 - **Characters:** create one with a name, a job description, a skill (web research or thinking
-  only), a vehicle, a colour and a home building (which decides its department). Up to 24
+  only), a model (animated astronauts, mechs and aliens that walk, or vehicles), a colour and a
+  home building (which decides its department). Up to 24
   custom characters on top of the 7 built-in ones. Each character is created as a real Hermes
   sub-agent under the Commander, so the next mission can delegate to it. Built-in characters
   can be renamed and restyled; your own can be removed. Vehicles include Open RTS's Tank and
@@ -130,6 +155,8 @@ screens), anti-aliasing, menu text size (70–120%), map label size (names above
 | Pan | WASD or screen edges |
 | Zoom | Mouse wheel |
 | Select an agent | Click it, or click its card in the roster (centres the camera) |
+| Select a building | Click it (details bottom right) |
+| Show the whole base | The frame button by the minimap (or Fit map in Settings) |
 | Approve | The dialog, or click the Human Approval building |
 | Abort a mission | **Abort** next to Deploy |
 
@@ -188,7 +215,10 @@ saves screenshots at those seconds.
 ## Licences
 
 Agent RTS code is MIT. The game is a fork of Open RTS (MIT, Pawel Lampe) with Kenney's Space
-Kit (CC0); see `game/LICENSE` and `game/LOGO_LICENSES.md`. Terrain photo scans are from
+Kit (CC0); see `game/LICENSE` and `game/LOGO_LICENSES.md`. Also CC0: [KayKit Space Base
+Bits](https://github.com/KayKit-Game-Assets/KayKit-Space-Base-Bits-1.0) by Kay Lousberg and
+the [Ultimate Space Kit](https://quaternius.com/packs/ultimatespacekit.html) by Quaternius
+(`game/assets/models/*/LICENSE.txt`). Terrain photo scans are from
 [Poly Haven](https://polyhaven.com) (CC0): aerial_grass_rock, aerial_sand, snow_field_aerial,
 aerial_beach_01, worn_rock_natural_01, red_laterite_soil_stones, moon_01, mud_cracked_dry_03
 and snow_01. Hermes Synapse and Mission Control

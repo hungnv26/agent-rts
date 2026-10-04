@@ -76,11 +76,20 @@ export const BUILDING_MODELS = [
   // Open RTS's own structures and the rest of the kit's standalone buildings
   "VehicleFactory", "AircraftFactory", "AntiGroundTurret", "AntiAirTurret", "turret_single", "satelliteDish",
   "structure_diagonal", "machine_generator", "machine_wireless", "machine_wirelessCable", "machine_barrel", "Rocket",
+  // KayKit Space Base Bits (CC0)
+  "basemodule_A", "basemodule_B", "basemodule_C", "basemodule_D", "basemodule_E", "basemodule_garage",
+  "cargodepot_A", "cargodepot_B", "cargodepot_C", "drill_structure", "lander_A", "lander_B",
+  "landingpad_large", "structure_low", "structure_tall", "windturbine_tall", "containers_A", "solarpanel",
+  // Quaternius Ultimate Space Kit (CC0)
+  "GeodesicDome", "BaseLarge", "BuildingL", "HouseCylinder", "HouseLong", "HouseSingle", "SolarPanelStructure",
 ];
 export const VEHICLE_MODELS = [
   "rover", "craft_speederA", "craft_speederB", "craft_speederC", "craft_speederD", "craft_racer",
   "craft_miner", "craft_cargoA", "craft_cargoB", "astronautA", "astronautB", "alien",
   "Tank", "MonorailTrain", // assembled from several parts
+  // Quaternius Ultimate Space Kit (CC0): animated characters that walk, and two rovers
+  "Astronaut_A", "Astronaut_B", "Astronaut_C", "Mech_A", "Mech_B", "Mech_C", "Mech_D",
+  "EnemyLarge", "EnemySmall", "EnemyFlying", "Rover_A", "RoundRover",
 ];
 
 // ---- departments and districts ----
@@ -191,9 +200,9 @@ export const DEFAULT_LAYOUT: BaseLayout = organiseLayout({
   terrain: "mars",
   buildings: [
     { id: "command_centre", label: "Command Centre", x: 16, z: 16, model: "CommandCenter", color: "#66ccff", capability: "command", builtin: true },
-    { id: "research_lab", label: "Research Lab", x: 6.5, z: 6.5, model: "satelliteDish_large", color: "#59bfff", capability: "research", builtin: true },
-    { id: "code_factory", label: "Code Factory", x: 25.5, z: 6.5, model: "hangar_largeA", color: "#ff9940", capability: "code", builtin: true },
-    { id: "knowledge_library", label: "Knowledge Library", x: 6.5, z: 25.5, model: "hangar_roundGlass", color: "#73f299", capability: "knowledge", builtin: true },
+    { id: "research_lab", label: "Research Lab", x: 6.5, z: 6.5, model: "lander_B", color: "#59bfff", capability: "research", builtin: true },
+    { id: "code_factory", label: "Code Factory", x: 25.5, z: 6.5, model: "cargodepot_C", color: "#ff9940", capability: "code", builtin: true },
+    { id: "knowledge_library", label: "Knowledge Library", x: 6.5, z: 25.5, model: "basemodule_A", color: "#73f299", capability: "knowledge", builtin: true },
     { id: "human_approval", label: "Human Approval", x: 25.5, z: 25.5, model: "gate_complex", color: "#d98cff", capability: "approval", builtin: true },
   ],
   spots: [
@@ -201,13 +210,13 @@ export const DEFAULT_LAYOUT: BaseLayout = organiseLayout({
     { id: "repair_bay", label: "Repair Bay", x: 16, z: 26.5 },
   ],
   agents: [
-    { id: "commander", name: "Commander", hermesId: "jarvis", job: "Plans the mission, coordinates each step and writes the final summary.", skill: "orchestrator", model: "craft_cargoA", color: "#d9edff", home: "command_centre", builtin: true },
-    { id: "researcher", name: "Researcher", hermesId: "research", job: "Deep research: searches the web and reads sources.", skill: "web", model: "rover", color: "#59ccff", home: "research_lab", builtin: true },
-    { id: "scout", name: "Scout", hermesId: "scout", job: "Quick scan of the latest news and announcements.", skill: "web", model: "craft_speederA", color: "#ffe04d", home: "research_lab", builtin: true },
-    { id: "analyst", name: "Analyst", hermesId: "insights", job: "Extracts key facts, numbers and trends from what was gathered.", skill: "reasoning", model: "craft_miner", color: "#8cf280", home: "knowledge_library", builtin: true },
-    { id: "coder", name: "Coder", hermesId: "code", job: "Runs code in the sandbox: calculations and charts.", skill: "code", model: "craft_speederD", color: "#ff9940", home: "code_factory", builtin: true },
-    { id: "writer", name: "Writer", hermesId: "writer", job: "Drafts the report from the findings.", skill: "reasoning", model: "craft_speederB", color: "#ff80bf", home: "knowledge_library", builtin: true },
-    { id: "reviewer", name: "Reviewer", hermesId: "reviewer", job: "Checks the result for accuracy and gaps; always the last step.", skill: "reasoning", model: "craft_racer", color: "#d98cff", home: "knowledge_library", builtin: true },
+    { id: "commander", name: "Commander", hermesId: "jarvis", job: "Plans the mission, coordinates each step and writes the final summary.", skill: "orchestrator", model: "Mech_B", color: "#d9edff", home: "command_centre", builtin: true },
+    { id: "researcher", name: "Researcher", hermesId: "research", job: "Deep research: searches the web and reads sources.", skill: "web", model: "Astronaut_A", color: "#59ccff", home: "research_lab", builtin: true },
+    { id: "scout", name: "Scout", hermesId: "scout", job: "Quick scan of the latest news and announcements.", skill: "web", model: "EnemyFlying", color: "#ffe04d", home: "research_lab", builtin: true },
+    { id: "analyst", name: "Analyst", hermesId: "insights", job: "Extracts key facts, numbers and trends from what was gathered.", skill: "reasoning", model: "Astronaut_B", color: "#8cf280", home: "knowledge_library", builtin: true },
+    { id: "coder", name: "Coder", hermesId: "code", job: "Runs code in the sandbox: calculations and charts.", skill: "code", model: "Mech_D", color: "#ff9940", home: "code_factory", builtin: true },
+    { id: "writer", name: "Writer", hermesId: "writer", job: "Drafts the report from the findings.", skill: "reasoning", model: "Astronaut_C", color: "#ff80bf", home: "knowledge_library", builtin: true },
+    { id: "reviewer", name: "Reviewer", hermesId: "reviewer", job: "Checks the result for accuracy and gaps; always the last step.", skill: "reasoning", model: "Mech_A", color: "#d98cff", home: "knowledge_library", builtin: true },
   ],
 });
 
