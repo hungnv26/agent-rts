@@ -54,9 +54,14 @@ static func label(parent: Node, text: String, font_size: int, color: Color, ui_s
 
 
 # Instance a model, centre it on its footprint, scale its largest horizontal extent to
-# `size` (or its height to `height` when given) and return a pivot that can be rotated.
-static func fitted(path: String, size: float, height := 0.0) -> Node3D:
-	var model = load(path).instantiate()
+# `size` (or its height to `height` when given; never taller than `max_height` when that
+# is set) and return a pivot that can be rotated.
+static func fitted(path: String, size: float, height := 0.0, max_height := 0.0) -> Node3D:
+	var model: Node3D
+	if path.begins_with("composite:"):
+		model = load("res://source/agent/Composites.gd").build(path.substr(10))
+	else:
+		model = load(path).instantiate()
 	var pivot = Node3D.new()
 	pivot.add_child(model)
 	var box = aabb_of(model)
@@ -68,6 +73,8 @@ static func fitted(path: String, size: float, height := 0.0) -> Node3D:
 	else:
 		var extent = max(box.size.x, box.size.z)
 		s = size / extent if extent > 0.001 else 1.0
+	if max_height > 0.0 and box.size.y * s > max_height:
+		s = max_height / box.size.y
 	model.scale = Vector3.ONE * s
 	var c = box.get_center()
 	model.position = Vector3(-c.x * s, -box.position.y * s, -c.z * s)

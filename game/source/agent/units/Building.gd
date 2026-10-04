@@ -26,7 +26,7 @@ var _pivot: Node3D
 
 func _ready():
 	if model_path != "":
-		_pivot = Fx.fitted(model_path, model_size)
+		_pivot = Fx.fitted(model_path, model_size, 0.0, 4.2)  # tall models (rocket) stay in scale
 		find_child("Geometry").add_child(_pivot)
 	await super()
 	var ui_scale = _match.label_scale if "label_scale" in _match else 1.0

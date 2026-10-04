@@ -21,10 +21,13 @@ const BUILDING_MODELS = [
 	"hangar_roundB", "hangar_roundGlass", "hangar_smallA", "hangar_smallB", "gate_complex", "gate_simple",
 	"structure", "structure_detailed", "structure_closed", "machine_generatorLarge", "machine_barrelLarge",
 	"rocket_baseA", "turret_double",
+	"VehicleFactory", "AircraftFactory", "AntiGroundTurret", "AntiAirTurret", "turret_single", "satelliteDish",
+	"structure_diagonal", "machine_generator", "machine_wireless", "machine_wirelessCable", "machine_barrel", "Rocket",
 ]
 const VEHICLE_MODELS = [
 	"rover", "craft_speederA", "craft_speederB", "craft_speederC", "craft_speederD", "craft_racer",
 	"craft_miner", "craft_cargoA", "craft_cargoB", "astronautA", "astronautB", "alien",
+	"Tank", "MonorailTrain",
 ]
 const PALETTE = ["#59ccff", "#ffe04d", "#8cf280", "#ff9940", "#ff80bf", "#d98cff", "#ff5c5c", "#e6e6e6"]
 

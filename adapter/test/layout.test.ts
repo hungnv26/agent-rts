@@ -128,3 +128,20 @@ test("terrain is part of the base and can change during a mission", async () => 
   await assert.rejects(base.apply({ type: "layout.terrain", terrain: "pluto" }), /Unknown terrain/);
   await src.stop();
 });
+
+test("the base holds up to 32 buildings, 4.5 apart", () => {
+  const l = cloneLayout(DEFAULT_LAYOUT);
+  let n = 0;
+  for (let z = 2; z <= 30; z += 0.5) {
+    for (let x = 2; x <= 30; x += 0.5) {
+      if (l.buildings.length >= 32) break;
+      try {
+        upsertBuilding(l, { label: `Block ${n++}`, x, z, model: "Rocket" });
+      } catch (e) {
+        if (!(e instanceof LayoutError) || !/Too close|at most/.test(e.message)) throw e;
+      }
+    }
+  }
+  assert.equal(l.buildings.length, 32);
+  assert.throws(() => upsertBuilding(l, { label: "One more", x: 5, z: 5 }), /at most 32/);
+});

@@ -68,11 +68,15 @@ Click **Build** (top right) to design your own base. Everything you build does r
   research, code & data, knowledge & notes, or a meeting point). Click **Place on map**, then
   click where it should go. Agents whose tools match drive to your building. Any building,
   the Rally Point and the Repair Bay can be moved; your own buildings can be removed (the
-  Command Centre and Human Approval are permanent).
+  Command Centre and Human Approval are permanent). The base holds up to 32 buildings, at
+  least 4.5 units apart. Models: every standalone building in the Kenney Space Kit, Open RTS's
+  own Vehicle Factory, Aircraft Factory and turrets, and a Rocket assembled from the kit's
+  rocket parts.
 - **Characters:** create one with a name, a job description, a skill (web research or thinking
   only), a vehicle, a colour and a home building. Each character is created as a real Hermes
   sub-agent under the Commander, so the next mission can delegate to it. Built-in characters
-  can be renamed and restyled; your own can be removed.
+  can be renamed and restyled; your own can be removed. Vehicles include Open RTS's Tank and
+  a Monorail Train, both assembled from kit parts.
 - **Terrain:** pick the ground and light: on Earth (Grassland, Sahara Desert, Arctic Ice,
   Tropical Beach, Grand Canyon) or other worlds (Mars, the Moon, Venus, Europa, Titan). It's
   only looks, so it can change at any time. Each terrain is a 1024² PBR texture set

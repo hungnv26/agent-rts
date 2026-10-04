@@ -164,13 +164,31 @@ func _spot_pos(id) -> Variant:
 	return null
 
 
+# Layout model names -> loadable paths ("composite:" ones are assembled in Composites.gd).
+const COMPOSITE_MODELS = {
+	"VehicleFactory": "composite:vehicle_factory",
+	"AircraftFactory": "composite:aircraft_factory",
+	"AntiGroundTurret": "composite:anti_ground_turret",
+	"AntiAirTurret": "composite:anti_air_turret",
+	"Rocket": "composite:rocket",
+	"Tank": "composite:tank",
+	"MonorailTrain": "composite:monorail_train",
+}
+
+
 static func _model_path(model_name: String) -> String:
-	return COMMAND_CENTRE_SCENE if model_name == "CommandCenter" else KENNEY + model_name + ".glb"
+	if model_name == "CommandCenter":
+		return COMMAND_CENTRE_SCENE
+	if COMPOSITE_MODELS.has(model_name):
+		return COMPOSITE_MODELS[model_name]
+	return KENNEY + model_name + ".glb"
 
 
 static func _vehicle_size(model_name: String) -> float:
-	if model_name.begins_with("craft_cargo"):
+	if model_name.begins_with("craft_cargo") or model_name == "MonorailTrain":
 		return 2.2
+	if model_name == "Tank":
+		return 1.9
 	if model_name.begins_with("astronaut") or model_name == "alien":
 		return 1.0
 	if model_name == "craft_miner" or model_name == "craft_racer":

@@ -69,10 +69,14 @@ export const BUILDING_MODELS = [
   "hangar_roundB", "hangar_roundGlass", "hangar_smallA", "hangar_smallB", "gate_complex", "gate_simple",
   "structure", "structure_detailed", "structure_closed", "machine_generatorLarge", "machine_barrelLarge",
   "rocket_baseA", "turret_double", "CommandCenter",
+  // Open RTS's own structures and the rest of the kit's standalone buildings
+  "VehicleFactory", "AircraftFactory", "AntiGroundTurret", "AntiAirTurret", "turret_single", "satelliteDish",
+  "structure_diagonal", "machine_generator", "machine_wireless", "machine_wirelessCable", "machine_barrel", "Rocket",
 ];
 export const VEHICLE_MODELS = [
   "rover", "craft_speederA", "craft_speederB", "craft_speederC", "craft_speederD", "craft_racer",
   "craft_miner", "craft_cargoA", "craft_cargoB", "astronautA", "astronautB", "alien",
+  "Tank", "MonorailTrain", // assembled from several parts
 ];
 
 export const DEFAULT_LAYOUT: BaseLayout = {
@@ -170,6 +174,9 @@ function coord(v: unknown, size: number): number {
 
 export class LayoutError extends Error {}
 
+export const MAX_BUILDINGS = 32;
+const BUILDING_SPACING = 4.5; // centre to centre; footprints are ~3.6
+
 function uniqueId(base: string, taken: Set<string>): string {
   let id = base;
   for (let i = 2; taken.has(id); i++) id = `${base}_${i}`;
@@ -181,6 +188,7 @@ export function upsertBuilding(l: BaseLayout, input: Record<string, unknown>): B
   const label = text(input.label, 40);
   const existing = typeof input.id === "string" ? l.buildings.find((b) => b.id === input.id) : undefined;
   if (!existing && !label) throw new LayoutError("A building needs a name.");
+  if (!existing && l.buildings.length >= MAX_BUILDINGS) throw new LayoutError(`The base holds at most ${MAX_BUILDINGS} buildings.`);
   const model = typeof input.model === "string" && BUILDING_MODELS.includes(input.model) ? input.model : existing?.model ?? "hangar_smallA";
   const color = typeof input.color === "string" && COLOR_RE.test(input.color) ? input.color : existing?.color ?? "#cccccc";
   const capability =
@@ -192,7 +200,7 @@ export function upsertBuilding(l: BaseLayout, input: Record<string, unknown>): B
   const x = input.x !== undefined ? coord(input.x, l.size) : existing?.x ?? l.size / 2;
   const z = input.z !== undefined ? coord(input.z, l.size) : existing?.z ?? l.size / 2;
   for (const b of l.buildings) {
-    if (b !== existing && Math.hypot(b.x - x, b.z - z) < 5) throw new LayoutError(`Too close to ${b.label}.`);
+    if (b !== existing && Math.hypot(b.x - x, b.z - z) < BUILDING_SPACING) throw new LayoutError(`Too close to ${b.label}.`);
   }
   for (const s of l.spots) {
     if (Math.hypot(s.x - x, s.z - z) < 4.5) throw new LayoutError(`Too close to the ${s.label}.`);
@@ -201,7 +209,6 @@ export function upsertBuilding(l: BaseLayout, input: Record<string, unknown>): B
     Object.assign(existing, { label: label || existing.label, model, color, capability, x, z });
     return existing;
   }
-  if (l.buildings.length >= 12) throw new LayoutError("The base holds at most 12 buildings.");
   const id = uniqueId(slug(label), new Set(l.buildings.map((b) => b.id)));
   const b: BuildingDef = { id, label, x, z, model, color, capability };
   l.buildings.push(b);
