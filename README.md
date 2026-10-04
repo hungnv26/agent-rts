@@ -62,9 +62,9 @@ natively), pnpm, Godot 4.4+ (`brew install --cask godot`) and Ollama.
 
 ### Settings
 
-**Settings** (top right) changes display mode (window or fullscreen), window size, 3D render
-resolution (50–100%, lower is faster on 4K/5K screens), anti-aliasing, the size of text and
-panels, and map zoom. Changes apply immediately and are saved for next time
+**Settings** (top right) changes display mode (window or fullscreen), window resolution
+(1280×720 up to 3840×2160 / 4K), 3D render resolution (50–100%, lower is faster on 4K/5K
+screens), anti-aliasing, text size (80–170%), and map zoom. Changes apply immediately and are saved for next time
 (`~/Library/Application Support/Godot/app_userdata/Agent RTS/agent_rts_settings.cfg`).
 
 ### Controls

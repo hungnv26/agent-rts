@@ -205,7 +205,8 @@ func _process(delta):
 # HUD and labels are designed for a 1080p-tall window; scale them up on 4K/5K screens.
 func _compute_ui_scale():
 	var h = get_viewport().get_visible_rect().size.y
-	return clampf(h / 1080.0, 1.0, 3.0) * display_settings.ui_size
+	var base = clampf(h / 1080.0, 1.0, 3.0) * SettingsScript.TEXT_BASE * display_settings.text_size
+	return max(0.45, base)
 
 
 func _on_setting_changed(key, value):
@@ -223,8 +224,8 @@ func _on_setting_changed(key, value):
 		"msaa":
 			display_settings.msaa = value
 			display_settings.apply_render(get_viewport())
-		"ui_size":
-			display_settings.ui_size = value
+		"text_size":
+			display_settings.text_size = value
 			_apply_ui_scale()
 		"zoom":
 			display_settings.zoom = display_settings.clamp_zoom(value)

@@ -766,7 +766,7 @@ func _build_settings():
 	const Settings = preload("res://source/agent/Settings.gd")
 	_settings_panel = _panel(BG_SOLID)
 	_settings_panel.set_anchors_and_offsets_preset(PRESET_TOP_RIGHT)
-	_settings_panel.offset_left = -560
+	_settings_panel.offset_left = -640
 	_settings_panel.offset_right = -16
 	_settings_panel.offset_top = 92
 	_settings_panel.grow_horizontal = GROW_DIRECTION_BEGIN  # widen leftwards, never off-screen
@@ -787,14 +787,20 @@ func _build_settings():
 	_chip_row(v, "Display", "fullscreen", [["Window", false], ["Fullscreen", true]])
 	var sizes = []
 	for sz in Settings.WINDOW_SIZES:
-		sizes.append(["%d×%d" % [sz.x, sz.y], sz])
+		var chip_name = "%d×%d" % [sz.x, sz.y]
+		if sz.y == 2160:
+			chip_name += " 4K"
+		sizes.append([chip_name, sz])
 	_chip_row(v, "Window size", "window_size", sizes)
 	var scales = []
 	for r in Settings.RENDER_SCALES:
 		scales.append(["%d%%" % int(round(r * 100.0)), r])
 	_chip_row(v, "3D resolution", "render_scale", scales)
 	_chip_row(v, "Anti-aliasing", "msaa", [["Off", 0], ["2×", 1], ["4×", 2]])
-	_chip_row(v, "Text & panels", "ui_size", [["Small", 0.8], ["Normal", 1.0], ["Large", 1.25], ["X-Large", 1.5]])
+	var texts = []
+	for t in Settings.TEXT_SIZES:
+		texts.append(["%d%%" % int(round(t * 100.0)), t])
+	_chip_row(v, "Text size", "text_size", texts)
 	var zoom_row = HBoxContainer.new()
 	zoom_row.add_theme_constant_override("separation", 10)
 	var zl = _label("Map zoom", 15)
@@ -853,7 +859,7 @@ func show_settings(settings, camera_size: float):
 		"window_size": settings.window_size,
 		"render_scale": settings.render_scale,
 		"msaa": settings.msaa,
-		"ui_size": settings.ui_size,
+		"text_size": settings.text_size,
 	}
 	for key in _chip_groups:
 		for chip in _chip_groups[key]:
