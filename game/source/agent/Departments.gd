@@ -26,8 +26,9 @@ const DISTRICTS = [
 	["research", "command", "code"],
 	["knowledge", "knowledge", "meeting"],
 ]
-const STREETS = [11.0, 21.0]  # x and z of the streets between districts
-const CELL = 10.0
+const MAP_SIZE = 44.0
+const CELL = 14.0  # 2x2 building slots, 7 apart
+const STREETS = [15.0, 29.0]  # x and z of the streets between districts
 
 
 static func of(capability: String) -> String:
@@ -42,7 +43,7 @@ static func of_building(layout: Dictionary, building_id: String) -> String:
 
 
 static func cell_centre(col: int, row: int) -> Vector3:
-	return Vector3(6.0 + col * CELL, 0, 6.0 + row * CELL)
+	return Vector3(1.0 + CELL * 0.5 + col * CELL, 0, 1.0 + CELL * 0.5 + row * CELL)
 
 
 static func centre(dept: String) -> Vector3:

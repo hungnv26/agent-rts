@@ -35,7 +35,7 @@ test("placing a building validates position and saves the base", async () => {
   assert.equal(JSON.parse(readFileSync(path, "utf8")).buildings.length, DEFAULT_LAYOUT.buildings.length + 1);
 
   await assert.rejects(
-    base.apply({ type: "layout.building.upsert", building: { label: "Too close", x: 16, z: 17 } }),
+    base.apply({ type: "layout.building.upsert", building: { label: "Too close", x: 18, z: 21 } }),
     /Too close to Command Centre/,
   );
   await assert.rejects(base.apply({ type: "layout.building.remove", id: "command_centre" }), /can be moved but not removed/);
@@ -132,8 +132,8 @@ test("terrain is part of the base and can change during a mission", async () => 
 test("the base holds up to 32 buildings, 4.5 apart", () => {
   const l = cloneLayout(DEFAULT_LAYOUT);
   let n = 0;
-  for (let z = 2; z <= 30; z += 0.5) {
-    for (let x = 2; x <= 30; x += 0.5) {
+  for (let z = 2; z <= l.size - 2; z += 0.5) {
+    for (let x = 2; x <= l.size - 2; x += 0.5) {
       if (l.buildings.length >= 32) break;
       try {
         upsertBuilding(l, { label: `Block ${n++}`, x, z, model: "Rocket" });
@@ -155,7 +155,7 @@ test("up to 24 custom characters on top of the built-ins", () => {
 
 // District of a map position (3x3 grid of ~10-unit cells).
 function districtAt(x: number, z: number) {
-  const cell = (v: number) => Math.min(2, Math.max(0, Math.floor((v - 1) / 10)));
+  const cell = (v: number) => Math.min(2, Math.max(0, Math.floor((v - 1) / 14)));
   return DISTRICTS[cell(z)][cell(x)];
 }
 
@@ -163,7 +163,7 @@ test("organise puts every building in its department's district, in department c
   const l = cloneLayout(DEFAULT_LAYOUT);
   const caps = ["research", "code", "knowledge", "meeting"] as const;
   for (let i = 0; i < 20; i++) upsertBuilding(l, { label: `B${i}`, capability: caps[i % 4] });
-  l.buildings.forEach((b, i) => Object.assign(b, { x: (i * 7) % 28 + 2, z: (i * 11) % 28 + 2, color: "#000000" })); // scramble
+  l.buildings.forEach((b, i) => Object.assign(b, { x: (i * 7) % 40 + 2, z: (i * 11) % 40 + 2, color: "#000000" })); // scramble
   organiseLayout(l);
   for (const b of l.buildings) {
     assert.equal(districtAt(b.x, b.z), departmentOf(b.capability), `${b.label} at ${b.x},${b.z}`);

@@ -86,7 +86,8 @@ export const VEHICLE_MODELS = [
 // ---- departments and districts ----
 // Every building belongs to a department (its capability; Human Approval sits with Command)
 // and every character to its home building's department. The map is a 3x3 grid of districts
-// separated by streets; each district has 2x2 building slots on a 5-unit lattice.
+// separated by streets; each district has 2x2 building slots on a 7-unit lattice, which
+// leaves room around every building for its characters to park.
 //
 //   Research   | Commons (Rally Point) | Engineering
 //   Research   | Command + Approval    | Engineering
@@ -106,7 +107,9 @@ export function departmentOf(capability: Capability): Department {
   return capability === "approval" ? "command" : capability;
 }
 
-const LATTICE = [3.5, 8.5, 13.5, 18.5, 23.5, 28.5];
+export const MAP_SIZE = 44;
+const PITCH = 7;
+const LATTICE = [0, 1, 2, 3, 4, 5].map((i) => PITCH / 2 + 1 + i * PITCH); // 4.5 .. 39.5
 // DISTRICTS[row][col], rows north (low z) to south.
 export const DISTRICTS: Department[][] = [
   ["research", "meeting", "code"],
@@ -115,10 +118,10 @@ export const DISTRICTS: Department[][] = [
 ];
 // Fixed places in the Command district and for the two spots (each spot takes one slot).
 const FIXED: Record<string, { x: number; z: number }> = {
-  command_centre: { x: 13.5, z: 16 },
-  human_approval: { x: 18.5, z: 16 },
-  rally_point: { x: 13.5, z: 8.5 },
-  repair_bay: { x: 28.5, z: 28.5 },
+  command_centre: { x: LATTICE[2], z: MAP_SIZE / 2 },
+  human_approval: { x: LATTICE[3], z: MAP_SIZE / 2 },
+  rally_point: { x: LATTICE[2], z: LATTICE[1] },
+  repair_bay: { x: LATTICE[5], z: LATTICE[5] },
 };
 
 interface Slot { x: number; z: number; dept: Department }
@@ -136,13 +139,14 @@ const SLOTS: Slot[] = (() => {
     }
   }
   // Inner slots first, so a small department hugs the centre.
-  const d = (s: Slot) => Math.hypot(s.x - 16, s.z - 16);
+  const d = (s: Slot) => Math.hypot(s.x - MAP_SIZE / 2, s.z - MAP_SIZE / 2);
   return out.sort((a, b) => d(a) - d(b) || a.z - b.z || a.x - b.x);
 })();
 
 function districtCentre(dept: Department): { x: number; z: number } {
   const cells: { x: number; z: number }[] = [];
-  DISTRICTS.forEach((row, r) => row.forEach((d, c) => d === dept && cells.push({ x: 6 + c * 10, z: 6 + r * 10 })));
+  const cell = 2 * PITCH;
+  DISTRICTS.forEach((row, r) => row.forEach((d, c) => d === dept && cells.push({ x: 1 + cell / 2 + c * cell, z: 1 + cell / 2 + r * cell })));
   return { x: cells.reduce((a, b) => a + b.x, 0) / cells.length, z: cells.reduce((a, b) => a + b.z, 0) / cells.length };
 }
 
@@ -183,7 +187,7 @@ export function organiseLayout(l: BaseLayout): BaseLayout {
 
 export const DEFAULT_LAYOUT: BaseLayout = organiseLayout({
   version: 1,
-  size: 32,
+  size: MAP_SIZE,
   terrain: "mars",
   buildings: [
     { id: "command_centre", label: "Command Centre", x: 16, z: 16, model: "CommandCenter", color: "#66ccff", capability: "command", builtin: true },
@@ -222,6 +226,11 @@ export function loadLayout(path: string): BaseLayout {
     for (const a of DEFAULT_LAYOUT.agents) if (!l.agents.some((x) => x.id === a.id)) l.agents.push(structuredClone(a));
     for (const s of DEFAULT_LAYOUT.spots) if (!l.spots.some((x) => x.id === s.id)) l.spots.push(structuredClone(s));
     if (!TERRAINS.includes(l.terrain)) l.terrain = DEFAULT_LAYOUT.terrain;
+    // A base saved on the older, smaller map is laid out again on the current one.
+    if (l.size !== MAP_SIZE) {
+      l.size = MAP_SIZE;
+      organiseLayout(l);
+    }
     return l;
   } catch {
     return cloneLayout(DEFAULT_LAYOUT);

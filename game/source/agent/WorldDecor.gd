@@ -12,7 +12,7 @@ const Departments = preload("res://source/agent/Departments.gd")
 
 var buildings = {}  # id -> {"pos": Vector3, "accent": Color, "size": float}
 var spots = {}  # id -> {"pos": Vector3, "color": Color, "label": String}
-var center = Vector3(16, 0, 16)
+var center = Vector3(22, 0, 22)
 var ui_scale = 1.0
 
 var road_color = Color(0.62, 0.42, 0.36)
@@ -43,7 +43,7 @@ func update_world(_agents: Array, _delta: float):
 
 
 func _build_districts():
-	var size = 32.0
+	var size = Departments.MAP_SIZE
 	for v in Departments.STREETS:
 		_street(Vector3(v, 0, size * 0.5), size - 2.0, false)
 		_street(Vector3(size * 0.5, 0, v), size - 2.0, true)
@@ -66,7 +66,7 @@ func _build_districts():
 			add_child(mi)
 			# The name lies on the ground between the two rows of buildings (in the
 			# Command district, below the Command Centre and Human Approval).
-			var name_pos = at + (Vector3(0, 0, 3.6) if dept == "command" else Vector3(0, 0, 0.3))
+			var name_pos = at + (Vector3(0, 0, 4.2) if dept == "command" else Vector3(0, 0, 0.3))
 			_ground_text(Departments.NAMES[dept].to_upper(), name_pos, col)
 
 
@@ -91,7 +91,7 @@ func _ground_text(text: String, pos: Vector3, color: Color):
 	var l = Label3D.new()
 	l.text = text
 	l.font_size = 96
-	l.pixel_size = 0.0075
+	l.pixel_size = 0.009
 	l.outline_size = 18
 	l.modulate = Color(color.lightened(0.15), 0.72)
 	l.outline_modulate = Color(0.04, 0.05, 0.08, 0.7)

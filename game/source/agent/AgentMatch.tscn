@@ -47,13 +47,13 @@ settings = SubResource("Resource_settings")
 color = Color(0.4, 0.62, 0.95, 1)
 
 [node name="IsometricCamera3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 0.469472, 0.882948, 0, -0.882948, 0.469472, 16, 20, 26.4)
-size = 29.0
+transform = Transform3D(1, 0, 0, 0, 0.469472, 0.882948, 0, -0.882948, 0.469472, 22, 26, 34.6)
+size = 40.0
 size_min = 12
-size_max = 42
+size_max = 56
 expected_pitch_degrees = -62.0
 allow_rotation = false
-bounding_planes = Array[Plane]([Plane(1, 0, 0, 0), Plane(-1, 0, 0, -32), Plane(0, 0, 1, 0), Plane(0, 0, -1, -32)])
+bounding_planes = Array[Plane]([Plane(1, 0, 0, 0), Plane(-1, 0, 0, -44), Plane(0, 0, 1, 0), Plane(0, 0, -1, -44)])
 
 [node name="ScreenOverlay" parent="FogOfWar" index="1"]
 visible = false

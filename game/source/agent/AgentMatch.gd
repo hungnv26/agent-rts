@@ -23,7 +23,7 @@ const SPOT_COLORS = {"rally_point": Color(1.0, 0.82, 0.35), "repair_bay": Color(
 # Only the Command Centre exists before the adapter sends the layout (the match needs one
 # unit to start); everything else comes from the layout.
 const BOOT_COMMAND_CENTRE = {
-	"id": "command_centre", "label": "Command Centre", "x": 16.0, "z": 16.0,
+	"id": "command_centre", "label": "Command Centre", "x": 18.5, "z": 22.0,
 	"model": "CommandCenter", "color": "#66ccff", "capability": "command",
 }
 const RTS_ONLY_NODES = [
@@ -149,7 +149,7 @@ func _process(delta):
 
 func _center() -> Vector3:
 	var cc = _bdef("command_centre")
-	return Vector3(cc["x"], 0, cc["z"]) if cc != null else Vector3(16, 0, 16)
+	return Vector3(cc["x"], 0, cc["z"]) if cc != null else Vector3(22, 0, 22)
 
 
 func _bdef(id) -> Variant:
@@ -360,16 +360,17 @@ func _target_for(location, agent_id):
 		n = sharing.size()
 		idx = max(0, sharing.find(mine))
 	var pos = Vector3(b["x"], 0, b["z"])
-	# Close in, so characters park on the street beside their building, not across it.
-	var base_r = 3.6 if location == "command_centre" else 2.7
-	return _arc_slot(pos, (center - pos).normalized(), idx, n, base_r)
+	# Characters stand right in front of the building (the side facing the camera), so
+	# they're visible and stay inside their own district.
+	var base_r = 3.4 if location == "command_centre" else 2.6
+	return _arc_slot(pos, Vector3(0, 0, 1), idx, n, base_r)
 
 
-# Slot `i` on rows of arcs around a building, filling the side facing the map centre first;
+# Slot `i` on rows of arcs around a building, filling the `facing` side first;
 # each further row is one unit out. Slots inside other buildings or off the map are skipped.
 func _arc_slot(pos: Vector3, facing: Vector3, i: int, n: int, base_r: float) -> Vector3:
 	const GAP = 1.05
-	var size = float(_layout.get("size", 32))
+	var size = float(_layout.get("size", Departments.MAP_SIZE))
 	var others = []
 	for b in _layout.get("buildings", []):
 		var bp = Vector3(b["x"], 0, b["z"])
@@ -663,6 +664,11 @@ func _on_unit_selected(unit):
 		_hud.select_agent(unit.agent_id)
 	elif "building_id" in unit and unit.building_id == "human_approval":
 		_hud.open_approval_if_pending()
+
+
+# Start framing the whole base (Open RTS starts on the player's units).
+func _move_camera_to_initial_position():
+	_camera.set_position_safely(Vector3(Departments.MAP_SIZE * 0.5, 0, Departments.MAP_SIZE * 0.5 - 0.8))
 
 
 func _focus_agent(agent_id):
