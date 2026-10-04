@@ -18,6 +18,13 @@ var _roads = {}  # location -> ShaderMaterial
 var _use = {}  # location -> smoothed 0..1
 
 
+func clear():
+	for child in get_children():
+		child.queue_free()
+	_roads.clear()
+	_use.clear()
+
+
 func build():
 	_build_roads()
 	_build_rally_point()

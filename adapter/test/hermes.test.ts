@@ -6,7 +6,8 @@ import { test } from "node:test";
 import { WebSocketServer } from "ws";
 import type { ServerMessage } from "../src/contract.ts";
 import { cleanReport, HermesSource } from "../src/sources/hermes.ts";
-import { buildingForTool, HermesTranslator } from "../src/sources/hermes-translator.ts";
+import { buildingForTool, DEFAULT_LAYOUT } from "../src/layout.ts";
+import { HermesTranslator } from "../src/sources/hermes-translator.ts";
 import { World } from "../src/world.ts";
 
 // Frames captured from a real Hermes Synapse run (qwen3 4B, chat id rts_test2),
@@ -73,8 +74,8 @@ test("tool calls move the agent to the matching building", () => {
   const a = world.getAgent("reviewer")!;
   assert.equal(a.location, "research_lab");
   assert.equal(a.detail, "web_search: EV Council 2024 report");
-  assert.equal(buildingForTool("execute_command"), "code_factory");
-  assert.equal(buildingForTool("search_obsidian"), "research_lab"); // "search" wins: it is a lookup
+  assert.equal(buildingForTool(DEFAULT_LAYOUT, "execute_command"), "code_factory");
+  assert.equal(buildingForTool(DEFAULT_LAYOUT, "search_obsidian"), "research_lab"); // "search" wins: it is a lookup
 });
 
 // Minimal stand-in for Hermes: REST endpoints the source calls + a WS that replays the fixture.

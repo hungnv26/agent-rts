@@ -87,3 +87,15 @@ buildings, conduits and beams react as they did live. The timeline shows a marke
 in the agent's colour, and log lines appear as captions. Pause, speed (×0.5–×4) and Close
 are available; the report opens when the replay ends (or straight away with **View
 report**). **▶ Replay** in the report panel plays it again.
+
+## Build mode (player-designed base)
+
+The adapter owns the base layout (`adapter/src/layout.ts`, saved to `.data/base.json`):
+buildings (position, model, colour, capability), the two spots, and the characters. The
+snapshot carries it, and edits arrive as `layout.*` commands (`building.upsert/remove`,
+`spot.move`, `agent.upsert/remove`, `reset`). They are validated (map bounds, spacing,
+limits, core buildings and the core team can't be deleted), applied to the world (agents
+added or removed live), saved, and synced to Hermes. Each custom character becomes a
+sub-agent `rts_<id>` under the orchestrator, with its job as the system prompt and its skill
+mapped to `web_search` or a no-tools reasoning skill. Tool calls route to the first building
+whose capability matches the tool, and the mission prompt lists the whole current team.

@@ -1,8 +1,8 @@
 import { EventEmitter } from "node:events";
+import { type BaseLayout, cloneLayout, DEFAULT_LAYOUT, homeOf } from "./layout.ts";
 import {
   CONTRACT_VERSION,
   type Agent,
-  type AgentRole,
   type AgentState,
   type Approval,
   type BuildingId,
@@ -18,34 +18,14 @@ import {
   type WorldSnapshot,
 } from "./contract.ts";
 
-// Every unit on the map is a real Hermes agent; the Commander is the orchestrator itself.
-export const ROSTER: { id: string; name: string; role: AgentRole }[] = [
-  { id: "commander", name: "Commander", role: "commander" },
-  { id: "researcher", name: "Researcher", role: "researcher" },
-  { id: "scout", name: "Scout", role: "scout" },
-  { id: "analyst", name: "Analyst", role: "analyst" },
-  { id: "coder", name: "Coder", role: "coder" },
-  { id: "writer", name: "Writer", role: "writer" },
-  { id: "reviewer", name: "Reviewer", role: "reviewer" },
-];
-
-export const HOME_BUILDING: Record<AgentRole, BuildingId> = {
-  commander: "command_centre",
-  researcher: "research_lab",
-  scout: "research_lab",
-  analyst: "knowledge_library",
-  coder: "code_factory",
-  writer: "knowledge_library",
-  reviewer: "knowledge_library",
-};
-
 const LOG_LIMIT = 200;
 const REPLAY_KEEP = 5; // missions kept for replay
 const REPLAY_TAIL_MS = 6000; // keep recording this long after a mission ends (agents walk home)
 const RECORDED = new Set(["agent.state", "task.upsert", "mission.upsert", "approval.upsert", "log", "resource.update"]);
 
-// Where an agent stands for a given state. `building` only matters while working.
-export function locationFor(state: AgentState, role: AgentRole, building?: BuildingId | null, current?: LocationId): LocationId {
+// Where an agent stands for a given state. `building` only matters while working; without
+// one the agent works at its home building.
+export function locationFor(state: AgentState, home: BuildingId, building?: BuildingId | null, current?: LocationId): LocationId {
   switch (state) {
     case "idle":
     case "complete":
@@ -53,7 +33,7 @@ export function locationFor(state: AgentState, role: AgentRole, building?: Build
     case "thinking":
       return current ?? "command_centre";
     case "working":
-      return building ?? HOME_BUILDING[role];
+      return building ?? home;
     case "waiting":
       return "rally_point";
     case "approval":
@@ -87,22 +67,47 @@ export class World extends EventEmitter {
   missionControlUrl: string | null = null;
   readonly now: () => number;
 
-  constructor(source: string, now: () => number = Date.now) {
+  layout: BaseLayout;
+
+  constructor(source: string, now: () => number = Date.now, layout: BaseLayout = cloneLayout(DEFAULT_LAYOUT)) {
     super();
     this.source = source;
     this.now = now;
-    for (const r of ROSTER) {
-      this.agents.set(r.id, {
-        ...r,
-        state: "idle",
-        location: "command_centre",
-        taskId: null,
-        taskTitle: null,
-        detail: null,
-        progress: null,
-        updatedAt: now(),
-      });
+    this.layout = layout;
+    for (const a of layout.agents) this.agents.set(a.id, this.newAgent(a.id, a.name, a.builtin ? a.id : "custom"));
+  }
+
+  private newAgent(id: string, name: string, role: string): Agent {
+    return { id, name, role, state: "idle", location: "command_centre", taskId: null, taskTitle: null, detail: null, progress: null, updatedAt: this.now() };
+  }
+
+  // Adopt an edited layout: add/remove/rename agents, send idle anyone whose spot vanished.
+  applyLayout(layout: BaseLayout): void {
+    this.layout = layout;
+    const ids = new Set(layout.agents.map((a) => a.id));
+    for (const id of [...this.agents.keys()]) {
+      if (!ids.has(id)) {
+        this.agents.delete(id);
+        this.emitEvent({ type: "agent.removed", agentId: id });
+      }
     }
+    this.emitEvent({ type: "layout.update", layout });
+    const places = new Set([...layout.buildings.map((b) => b.id), ...layout.spots.map((s) => s.id)]);
+    for (const def of layout.agents) {
+      const cur = this.agents.get(def.id);
+      if (!cur) {
+        this.agents.set(def.id, this.newAgent(def.id, def.name, "custom"));
+        this.emitEvent({ type: "agent.state", agent: this.agents.get(def.id)! });
+      } else if (cur.name !== def.name || !places.has(cur.location)) {
+        cur.name = def.name;
+        if (!places.has(cur.location)) this.setAgent(def.id, { state: "idle" });
+        else this.emitEvent({ type: "agent.state", agent: cur });
+      }
+    }
+  }
+
+  agentIds(): string[] {
+    return [...this.agents.keys()];
   }
 
   snapshot(): WorldSnapshot {
@@ -116,6 +121,7 @@ export class World extends EventEmitter {
       resources: this.resources,
       log: this.log,
       links: { missionControl: this.missionControlUrl },
+      layout: this.layout,
     };
   }
 
@@ -169,7 +175,7 @@ export class World extends EventEmitter {
     const next: Agent = {
       ...a,
       state: u.state,
-      location: locationFor(u.state, a.role, u.building, a.location),
+      location: locationFor(u.state, homeOf(this.layout, id), u.building, a.location),
       taskId: u.taskId !== undefined ? u.taskId : a.taskId,
       taskTitle: u.taskTitle !== undefined ? u.taskTitle : a.taskTitle,
       detail: u.detail !== undefined ? u.detail : a.detail,

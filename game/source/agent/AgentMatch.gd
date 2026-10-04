@@ -2,8 +2,9 @@ extends "res://source/match/Match.gd"
 
 # The agent world: a single-player Open RTS match with no combat, AI or economy.
 # Buildings are capabilities, units are AI agents, and all agent movement comes from the
-# adapter's world feed (WorldClient). The player watches, inspects, deploys missions and
-# answers Human Approval requests.
+# adapter's world feed (WorldClient). The base itself (buildings, spots, characters) is the
+# player's layout, owned by the adapter and edited in Build mode; this scene reconciles the
+# map with it whenever it changes.
 
 const AgentScene = preload("res://source/agent/units/Agent.tscn")
 const BuildingScene = preload("res://source/agent/units/Building.tscn")
@@ -14,65 +15,15 @@ const ReplayPlayerScript = preload("res://source/agent/replay/ReplayPlayer.gd")
 const Fx = preload("res://source/agent/Fx.gd")
 const SettingsScript = preload("res://source/agent/Settings.gd")
 
-const CENTER = Vector3(16, 0, 16)
 const KENNEY = "res://assets/models/kenney-spacekit/"
-const BUILDINGS = [
-	{
-		"id": "command_centre",
-		"label": "Command Centre",
-		"pos": Vector3(16, 0, 16),
-		"model": "res://source/match/units/structure-geometries/CommandCenter.tscn",
-		"size": 4.2,
-		"accent": Color(0.4, 0.8, 1.0),
-	},
-	{
-		"id": "research_lab",
-		"label": "Research Lab",
-		"pos": Vector3(6.5, 0, 6.5),
-		"model": KENNEY + "satelliteDish_large.glb",
-		"size": 3.6,
-		"accent": Color(0.35, 0.75, 1.0),
-	},
-	{
-		"id": "code_factory",
-		"label": "Code Factory",
-		"pos": Vector3(25.5, 0, 6.5),
-		"model": KENNEY + "hangar_largeA.glb",
-		"size": 3.8,
-		"accent": Color(1.0, 0.6, 0.25),
-	},
-	{
-		"id": "knowledge_library",
-		"label": "Knowledge Library",
-		"pos": Vector3(6.5, 0, 25.5),
-		"model": KENNEY + "hangar_roundGlass.glb",
-		"size": 3.6,
-		"accent": Color(0.45, 0.95, 0.6),
-	},
-	{
-		"id": "human_approval",
-		"label": "Human Approval",
-		"pos": Vector3(25.5, 0, 25.5),
-		"model": KENNEY + "gate_complex.glb",
-		"size": 3.6,
-		"accent": Color(0.85, 0.55, 1.0),
-	},
-]
-const SPOTS = {
-	"rally_point": {"label": "Rally Point", "pos": Vector3(16, 0, 6.0), "color": Color(1.0, 0.82, 0.35)},
-	"repair_bay": {"label": "Repair Bay", "pos": Vector3(16, 0, 26.5), "color": Color(1.0, 0.35, 0.35)},
+const COMMAND_CENTRE_SCENE = "res://source/match/units/structure-geometries/CommandCenter.tscn"
+const SPOT_COLORS = {"rally_point": Color(1.0, 0.82, 0.35), "repair_bay": Color(1.0, 0.35, 0.35)}
+# Only the Command Centre exists before the adapter sends the layout (the match needs one
+# unit to start); everything else comes from the layout.
+const BOOT_COMMAND_CENTRE = {
+	"id": "command_centre", "label": "Command Centre", "x": 16.0, "z": 16.0,
+	"model": "CommandCenter", "color": "#66ccff", "capability": "command",
 }
-# Every unit is a real Hermes agent (the Commander is the orchestrator itself), each its
-# own vehicle.
-const ROSTER = [
-	{"id": "commander", "name": "Commander", "color": Color(0.85, 0.93, 1.0), "model": KENNEY + "craft_cargoA.glb", "size": 2.2},
-	{"id": "researcher", "name": "Researcher", "color": Color(0.35, 0.8, 1.0), "model": KENNEY + "rover.glb", "size": 1.6},
-	{"id": "scout", "name": "Scout", "color": Color(1.0, 0.88, 0.3), "model": KENNEY + "craft_speederA.glb", "size": 1.6},
-	{"id": "analyst", "name": "Analyst", "color": Color(0.55, 0.95, 0.5), "model": KENNEY + "craft_miner.glb", "size": 1.7},
-	{"id": "coder", "name": "Coder", "color": Color(1.0, 0.6, 0.25), "model": KENNEY + "craft_speederD.glb", "size": 1.6},
-	{"id": "writer", "name": "Writer", "color": Color(1.0, 0.5, 0.75), "model": KENNEY + "craft_speederB.glb", "size": 1.6},
-	{"id": "reviewer", "name": "Reviewer", "color": Color(0.85, 0.55, 1.0), "model": KENNEY + "craft_racer.glb", "size": 1.7},
-]
 const RTS_ONLY_NODES = [
 	"Players/Human/StructurePlacementHandler",
 	"Players/Human/UnitActionsController",
@@ -83,8 +34,9 @@ const RTS_ONLY_NODES = [
 	"Handlers/MatchEndHandler",
 ]
 
-var _agents = {}
-var _buildings = {}
+var _layout = {"buildings": [BOOT_COMMAND_CENTRE], "spots": [], "agents": []}
+var _agents = {}  # id -> Agent node
+var _buildings = {}  # id -> Building node
 var _client = null
 var _hud = null
 var _first_snapshot = true
@@ -100,6 +52,7 @@ var _mission_status = ""
 var _replay = null
 var _replaying = false
 var _replay_wait_id = ""
+var _placement = null  # {kind, payload, label, preview} while placing in Build mode
 
 
 func _ready():
@@ -112,39 +65,13 @@ func _ready():
 		var node = get_node_or_null(path)
 		if node != null:
 			node.queue_free()
-	var human = $Players/Human
-	for b in BUILDINGS:
-		var building = BuildingScene.instantiate()
-		building.building_id = b["id"]
-		building.label = b["label"]
-		building.model_path = b["model"]
-		building.model_size = b["size"]
-		building.accent = b["accent"]
-		building.position = b["pos"]
-		human.add_child(building)
-		_buildings[b["id"]] = building
-	for r in ROSTER:
-		var agent = AgentScene.instantiate()
-		agent.agent_id = r["id"]
-		agent.display_name = r["name"]
-		agent.role_color = r["color"]
-		agent.model_path = r["model"]
-		agent.model_size = r["size"]
-		agent.resolve_target = _target_for
-		agent.state_applied.connect(_on_agent_state_applied)
-		agent.position = _target_for("command_centre", r["id"])
-		human.add_child(agent)
-		_agents[r["id"]] = agent
+	var cc = _make_building(BOOT_COMMAND_CENTRE)
+	$Players/Human.add_child(cc)
+	_buildings["command_centre"] = cc
 	super()
 	_decor = WorldDecorScript.new()
-	_decor.center = CENTER
 	_decor.ui_scale = label_scale
-	for b in BUILDINGS:
-		_decor.buildings[b["id"]] = {"pos": b["pos"], "accent": b["accent"], "size": b["size"]}
-	for id in SPOTS:
-		_decor.spots[id] = {"pos": SPOTS[id]["pos"], "color": SPOTS[id]["color"], "label": SPOTS[id]["label"]}
 	add_child(_decor)
-	_decor.build()
 	_replay = ReplayPlayerScript.new()
 	add_child(_replay)
 	_hud = AgentHUDScript.new()
@@ -163,6 +90,8 @@ func _ready():
 	_hud.replay_pause_toggled.connect(func(): _replay.toggle_pause())
 	_hud.replay_speed_cycled.connect(func(): _replay.cycle_speed())
 	_hud.replay_stop_requested.connect(_end_replay)
+	_hud.build_command.connect(func(cmd): _client.send_command(cmd))
+	_hud.placement_requested.connect(_begin_placement)
 	_replay.caption.connect(func(line): _hud.replay_caption(line))
 	_replay.progressed.connect(
 		func(clock, total): _hud.update_replay(clock, total, _replay.effective_speed(), _replay.playing)
@@ -185,15 +114,21 @@ func _process(delta):
 	var actors = _replay.ghosts.values() if _replaying else _agents.values()
 	# Each building's status line names the agents working inside.
 	for b in _buildings.values():
+		if not is_instance_valid(b):
+			continue
 		for agent in actors:
 			b.set_occupant(
 				agent.agent_id,
 				agent.state == "working" and agent.location == b.building_id and not agent.is_moving(),
 				agent.display_name
 			)
-	_buildings["human_approval"].alert = _replay.approval_pending if _replaying else not _pending_approvals.is_empty()
+	if _buildings.has("human_approval") and is_instance_valid(_buildings["human_approval"]):
+		_buildings["human_approval"].alert = (
+			_replay.approval_pending if _replaying else not _pending_approvals.is_empty()
+		)
 	if _decor != null:
 		_decor.update_world(actors, delta)
+	_update_placement_preview()
 	# Remember mouse-wheel zoom too (saved at most once a second).
 	if absf(_camera.size - display_settings.zoom) > 0.01:
 		display_settings.zoom = _camera.size
@@ -202,6 +137,254 @@ func _process(delta):
 			_zoom_saved_at = now
 			display_settings.save_settings()
 
+
+# ---------------------------------------------------------------- layout
+
+
+func _center() -> Vector3:
+	var cc = _bdef("command_centre")
+	return Vector3(cc["x"], 0, cc["z"]) if cc != null else Vector3(16, 0, 16)
+
+
+func _bdef(id) -> Variant:
+	for b in _layout.get("buildings", []):
+		if b["id"] == id:
+			return b
+	return null
+
+
+func _spot_pos(id) -> Variant:
+	for s in _layout.get("spots", []):
+		if s["id"] == id:
+			return Vector3(s["x"], 0, s["z"])
+	return null
+
+
+static func _model_path(model_name: String) -> String:
+	return COMMAND_CENTRE_SCENE if model_name == "CommandCenter" else KENNEY + model_name + ".glb"
+
+
+static func _vehicle_size(model_name: String) -> float:
+	if model_name.begins_with("craft_cargo"):
+		return 2.2
+	if model_name.begins_with("astronaut") or model_name == "alien":
+		return 1.0
+	if model_name == "craft_miner" or model_name == "craft_racer":
+		return 1.7
+	return 1.6
+
+
+# The roster in layout order, in the shape agents/ghosts/replay use.
+func _roster() -> Array:
+	var out = []
+	for a in _layout.get("agents", []):
+		out.append({
+			"id": a["id"], "name": a["name"], "color": Color.html(a["color"]),
+			"model": _model_path(a["model"]), "size": _vehicle_size(a["model"]),
+		})
+	return out
+
+
+func _make_building(def: Dictionary):
+	var b = BuildingScene.instantiate()
+	b.building_id = def["id"]
+	b.label = def["label"]
+	b.model_path = _model_path(def["model"])
+	b.model_size = 4.2 if def["id"] == "command_centre" else 3.6
+	b.accent = Color.html(def["color"])
+	b.position = Vector3(def["x"], 0, def["z"])
+	b.set_meta("sig", _sig(def, ["label", "model", "color", "x", "z"]))
+	return b
+
+
+func _make_agent(def: Dictionary):
+	var agent = AgentScene.instantiate()
+	agent.agent_id = def["id"]
+	agent.display_name = def["name"]
+	agent.role_color = Color.html(def["color"])
+	agent.model_path = _model_path(def["model"])
+	agent.model_size = _vehicle_size(def["model"])
+	agent.resolve_target = _target_for
+	agent.state_applied.connect(_on_agent_state_applied)
+	agent.set_meta("sig", _sig(def, ["name", "model", "color"]))
+	return agent
+
+
+static func _sig(def: Dictionary, keys: Array) -> String:
+	var parts = []
+	for k in keys:
+		parts.append(str(def.get(k, "")))
+	return "|".join(parts)
+
+
+# Bring the map in line with the layout: spawn, rebuild or remove buildings and agents.
+func _apply_layout(layout: Dictionary):
+	_layout = layout
+	var human = $Players/Human
+	var wanted = {}
+	for def in layout.get("buildings", []):
+		wanted[def["id"]] = true
+		var node = _buildings.get(def["id"])
+		var sig = _sig(def, ["label", "model", "color", "x", "z"])
+		if node != null and is_instance_valid(node) and node.get_meta("sig", "") == sig:
+			continue
+		if node != null and is_instance_valid(node):
+			node.queue_free()
+		var b = _make_building(def)
+		_setup_and_spawn_unit(b, Transform3D(Basis(), b.position), human, false)
+		_buildings[def["id"]] = b
+	for id in _buildings.keys():
+		if not wanted.has(id):
+			if is_instance_valid(_buildings[id]):
+				_buildings[id].queue_free()
+			_buildings.erase(id)
+	var agents_wanted = {}
+	for def in layout.get("agents", []):
+		agents_wanted[def["id"]] = true
+		var node = _agents.get(def["id"])
+		var sig = _sig(def, ["name", "model", "color"])
+		if node != null and is_instance_valid(node) and node.get_meta("sig", "") == sig:
+			continue
+		var data = {}
+		var pos = null
+		if node != null and is_instance_valid(node):
+			data = node.data
+			pos = node.global_position
+			node.queue_free()
+		var agent = _make_agent(def)
+		var at = pos if pos != null else _target_for("command_centre", def["id"])
+		_setup_and_spawn_unit(agent, Transform3D(Basis(), at), human, false)
+		_agents[def["id"]] = agent
+		if not data.is_empty():
+			agent.push_state(data)
+	for id in _agents.keys():
+		if not agents_wanted.has(id):
+			_remove_agent(id)
+	_rebuild_decor()
+	_hud.set_layout(layout)
+
+
+func _remove_agent(id):
+	if _agents.has(id):
+		if is_instance_valid(_agents[id]):
+			_agents[id].queue_free()
+		_agents.erase(id)
+	_hud.remove_agent(id)
+
+
+func _rebuild_decor():
+	_decor.clear()
+	_decor.center = _center()
+	_decor.ui_scale = label_scale
+	_decor.buildings = {}
+	_decor.spots = {}
+	for b in _layout.get("buildings", []):
+		_decor.buildings[b["id"]] = {"pos": Vector3(b["x"], 0, b["z"]), "accent": Color.html(b["color"]), "size": 3.6}
+	for s in _layout.get("spots", []):
+		_decor.spots[s["id"]] = {"pos": Vector3(s["x"], 0, s["z"]), "color": SPOT_COLORS.get(s["id"], Color.WHITE), "label": s["label"]}
+	if _decor.spots.has("rally_point") and _decor.spots.has("repair_bay") and _decor.buildings.has("command_centre"):
+		_decor.build()
+
+
+# Where an agent stands at a location. Each agent has a fixed slot so they never stack.
+func _target_for(location, agent_id):
+	var roster = _layout.get("agents", [])
+	var n = max(1, roster.size())
+	var idx = 0
+	for i in roster.size():
+		if roster[i]["id"] == agent_id:
+			idx = i
+	var center = _center()
+	var spot = _spot_pos(location)
+	if spot != null:
+		var a = TAU * idx / n
+		return spot + Vector3(cos(a), 0, sin(a)) * (1.2 + 0.06 * n)
+	var b = _bdef(location)
+	if b == null:
+		return center
+	var pos = Vector3(b["x"], 0, b["z"])
+	if location == "command_centre":
+		var angle = PI * 0.5 + TAU * idx / n
+		return pos + Vector3(cos(angle), 0, sin(angle)) * (3.6 + 0.08 * n)
+	var dir = (center - pos).normalized()
+	var door = pos + dir * 3.3
+	var perp = Vector3(-dir.z, 0, dir.x)
+	return door + perp * (idx - (n - 1) * 0.5) * clampf(6.0 / n, 0.5, 0.85)
+
+
+# ---------------------------------------------------------------- Build mode placement
+
+
+func _begin_placement(kind: String, payload: Dictionary, label_text: String):
+	_cancel_placement()
+	var preview = Node3D.new()
+	var mat = StandardMaterial3D.new()
+	mat.albedo_color = Color(1.0, 1.0, 1.0, 0.5)
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	var radius = 2.0 if kind == "spot" else 2.6
+	preview.add_child(Fx.torus(radius - 0.12, radius, mat, 0.02))
+	var l = Fx.label(preview, label_text, 24, Color.WHITE, label_scale)
+	l.position = Vector3(0, 1.0, 0)
+	add_child(preview)
+	_placement = {"kind": kind, "payload": payload, "preview": preview}
+	_hud.show_hint("Click on the map to place %s · right-click or Esc to cancel" % label_text)
+
+
+func _cancel_placement():
+	if _placement != null:
+		_placement["preview"].queue_free()
+		_placement = null
+		_hud.show_hint("")
+
+
+func _ground_point():
+	var hit = _camera.get_ray_intersection(get_viewport().get_mouse_position())
+	if hit == null:
+		return null
+	return Vector3(round(hit.x * 2.0) / 2.0, 0, round(hit.z * 2.0) / 2.0)
+
+
+func _update_placement_preview():
+	if _placement == null:
+		return
+	var p = _ground_point()
+	if p != null:
+		_placement["preview"].global_position = p + Vector3(0, 0.05, 0)
+
+
+func _unhandled_input(event):
+	if _placement != null:
+		if event is InputEventMouseButton and event.pressed:
+			if event.button_index == MOUSE_BUTTON_LEFT:
+				_finish_placement()
+			elif event.button_index == MOUSE_BUTTON_RIGHT:
+				_cancel_placement()
+			get_viewport().set_input_as_handled()
+			return
+		if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
+			_cancel_placement()
+			get_viewport().set_input_as_handled()
+			return
+	super(event)
+
+
+func _finish_placement():
+	var p = _ground_point()
+	if p == null:
+		return
+	var kind = _placement["kind"]
+	var payload = _placement["payload"].duplicate()
+	if kind == "spot":
+		_client.send_command({"type": "layout.spot.move", "id": payload["id"], "x": p.x, "z": p.z})
+	else:
+		payload["x"] = p.x
+		payload["z"] = p.z
+		_client.send_command({"type": "layout.building.upsert", "building": payload})
+	_cancel_placement()
+
+
+# ---------------------------------------------------------------- scaling & settings
 
 
 # HUD and labels are designed for a 1080p-tall window; scale them up on 4K/5K screens.
@@ -258,39 +441,15 @@ func _apply_ui_scale():
 		l.pixel_size = l.get_meta("base_px", 0.0008) * label_scale
 
 
-# Where an agent stands at a location. Each agent has a fixed slot so they never stack.
-func _target_for(location, agent_id):
-	var idx = 0
-	for i in ROSTER.size():
-		if ROSTER[i]["id"] == agent_id:
-			idx = i
-	var n = ROSTER.size()
-	if SPOTS.has(location):
-		var a = TAU * idx / n
-		return SPOTS[location]["pos"] + Vector3(cos(a), 0, sin(a)) * 1.6
-	var b = _building_def(location)
-	if b == null:
-		return CENTER
-	if location == "command_centre":
-		var angle = PI * 0.5 + TAU * idx / n
-		return b["pos"] + Vector3(cos(angle), 0, sin(angle)) * 4.1
-	var dir = (CENTER - b["pos"]).normalized()
-	var door = b["pos"] + dir * 3.3
-	var perp = Vector3(-dir.z, 0, dir.x)
-	return door + perp * (idx - (n - 1) * 0.5) * 0.85
-
-
-func _building_def(id):
-	for b in BUILDINGS:
-		if b["id"] == id:
-			return b
-	return null
+# ---------------------------------------------------------------- feed
 
 
 func _on_message(msg):
 	match msg.get("type", ""):
 		"snapshot":
 			var world = msg["world"]
+			if world.has("layout"):
+				_apply_layout(world["layout"])
 			_hud.apply_snapshot(world)
 			_hud.set_connection(true, world.get("source", ""))
 			for a in world.get("agents", []):
@@ -304,6 +463,12 @@ func _on_message(msg):
 			if m != null:
 				_mission_id = m.get("id", "")
 				mission_running = m.get("status") in ["planning", "running"]
+		"layout.update":
+			_apply_layout(msg["layout"])
+		"agent.removed":
+			_remove_agent(msg.get("agentId", ""))
+		"error":
+			_hud.show_error(str(msg.get("message", "")))
 		"agent.state":
 			_apply_agent(msg["agent"], false)
 		"task.upsert":
@@ -320,7 +485,7 @@ func _on_message(msg):
 				_replay_wait_id = m.get("id", "")
 				get_tree().create_timer(2.5).timeout.connect(_request_replay.bind(_replay_wait_id))
 			_hud.set_mission(m)
-			_on_mission_fx(m)
+			_on_mission_status(m)
 			_mission_status = status
 		"replay":
 			_on_replay(msg.get("replay"))
@@ -337,7 +502,7 @@ func _on_message(msg):
 			_hud.add_log(msg["line"])
 
 
-func _on_mission_fx(m):
+func _on_mission_status(m):
 	if m == null:
 		return
 	var status = m.get("status", "")
@@ -377,7 +542,7 @@ func _on_replay(replay):
 	_replaying = true
 	for agent in _agents.values():
 		agent.set_hidden(true)
-	_replay.start(replay, ROSTER, self, _target_for, label_scale)
+	_replay.start(replay, _roster(), self, _target_for, label_scale)
 	_hud.begin_replay(replay["mission"].get("title", ""), _replay.duration_ms, _replay.markers)
 
 
@@ -393,7 +558,7 @@ func _end_replay():
 
 func _apply_agent(a, snap):
 	var agent = _agents.get(a.get("id", ""))
-	if agent == null:
+	if agent == null or not is_instance_valid(agent):
 		return
 	if snap:
 		agent.snap_to(a)
@@ -423,7 +588,7 @@ func _focus_agent(agent_id):
 	_camera.set_position_safely(agent.global_position)
 
 
-# Dev aid: --capture-dir=DIR --capture-at=5,12,20 [--quit-after-capture]
+# Dev aid: --capture-dir=DIR --capture-at=5,12,20 [--quit-after-capture] [--open-settings|--open-build]
 # saves viewport screenshots at those seconds (used for automated visual checks).
 func _setup_capture():
 	var dir = ""
@@ -439,6 +604,12 @@ func _setup_capture():
 			quit_after = true
 		elif arg == "--open-settings":
 			_hud._toggle_settings.call_deferred()
+		elif arg == "--open-build":
+			_hud.toggle_build.call_deferred()
+		elif arg == "--open-build-character":
+			_hud.toggle_build.call_deferred()
+			_hud._build_panel._switch_tab.call_deferred("agents")
+			_hud._build_panel._open_agent_form.call_deferred(null)
 	if dir == "" or times.is_empty():
 		return
 	DirAccess.make_dir_recursive_absolute(dir)

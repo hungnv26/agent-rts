@@ -12,6 +12,8 @@ signal replay_pause_toggled
 signal replay_speed_cycled
 signal replay_stop_requested
 signal setting_changed(key, value)
+signal build_command(cmd)
+signal placement_requested(kind, payload, label_text)
 
 const ROLE_COLORS = {
 	"commander": Color(0.85, 0.93, 1.0),
@@ -69,6 +71,12 @@ var _zoom_slider: HSlider
 var _zoom_value: Label
 var _syncing_zoom = false
 var settings_ref = null
+var _build_panel = null
+var _hint_panel: PanelContainer
+var _hint_label: Label
+var _toast_panel: PanelContainer
+var _toast_label: Label
+var _toast_until = 0.0
 var camera_ref = null
 var _mission = null
 var _approvals = {}
@@ -89,6 +97,8 @@ func _ready():
 	_build_result()
 	_build_replay()
 	_build_settings()
+	_build_build_panel()
+	_build_hint_and_toast()
 
 
 # ---------- public API (driven by AgentMatch) ----------
@@ -339,6 +349,9 @@ func _build_top_bar():
 	_mc_button.visible = false
 	_mc_button.pressed.connect(func(): OS.shell_open(_mc_url))
 	row.add_child(_mc_button)
+	var build = _button("Build")
+	build.pressed.connect(toggle_build)
+	row.add_child(build)
 	var gear = _button("Settings")
 	gear.pressed.connect(_toggle_settings)
 	row.add_child(gear)
@@ -367,7 +380,7 @@ func _make_card(a):
 	var swatch = ColorRect.new()
 	swatch.custom_minimum_size = Vector2(10, 10)
 	swatch.size_flags_vertical = SIZE_SHRINK_CENTER
-	swatch.color = _role_color(a.get("role", ""))
+	swatch.color = _agent_colors.get(a["id"], _role_color(a.get("role", "")))
 	head.add_child(swatch)
 	var name_l = _label("  " + a.get("name", a["id"]), 16)
 	name_l.size_flags_horizontal = SIZE_EXPAND_FILL
@@ -391,7 +404,7 @@ func _make_card(a):
 	)
 	card.mouse_default_cursor_shape = CURSOR_POINTING_HAND
 	_roster.add_child(card)
-	return {"panel": card, "state": state, "task": task, "detail": detail}
+	return {"panel": card, "state": state, "task": task, "detail": detail, "swatch": swatch, "name": name_l}
 
 
 func _build_command_bar():
@@ -886,3 +899,92 @@ static func _same(a, b) -> bool:
 	if typeof(a) == TYPE_FLOAT or typeof(b) == TYPE_FLOAT:
 		return absf(float(a) - float(b)) < 0.001
 	return a == b
+
+
+
+# ---------- build mode ----------
+
+
+func _build_build_panel():
+	const BuildPanelScript = preload("res://source/agent/hud/BuildPanel.gd")
+	_build_panel = BuildPanelScript.new()
+	_build_panel.set_anchors_and_offsets_preset(PRESET_TOP_LEFT)
+	_build_panel.offset_left = 16
+	_build_panel.offset_top = 92
+	_build_panel.visible = false
+	add_child(_build_panel)
+	_build_panel.setup(self)
+	_build_panel.command.connect(func(cmd): build_command.emit(cmd))
+	_build_panel.place.connect(func(kind, payload, label_text): placement_requested.emit(kind, payload, label_text))
+
+
+func _build_hint_and_toast():
+	_hint_panel = _panel(Color(0.08, 0.1, 0.16, 0.92))
+	_hint_panel.set_anchors_and_offsets_preset(PRESET_CENTER_TOP)
+	_hint_panel.offset_left = -300
+	_hint_panel.offset_right = 300
+	_hint_panel.offset_top = 92
+	_hint_panel.grow_horizontal = GROW_DIRECTION_BOTH
+	_hint_panel.mouse_filter = MOUSE_FILTER_IGNORE
+	_hint_panel.visible = false
+	_hint_label = _label("", 15)
+	_hint_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_hint_panel.add_child(_hint_label)
+	add_child(_hint_panel)
+	_toast_panel = _panel(Color(0.25, 0.08, 0.08, 0.94))
+	_toast_panel.set_anchors_and_offsets_preset(PRESET_CENTER_TOP)
+	_toast_panel.offset_left = -300
+	_toast_panel.offset_right = 300
+	_toast_panel.offset_top = 150
+	_toast_panel.grow_horizontal = GROW_DIRECTION_BOTH
+	_toast_panel.mouse_filter = MOUSE_FILTER_IGNORE
+	_toast_panel.visible = false
+	_toast_label = _label("", 15, Color(1.0, 0.85, 0.85))
+	_toast_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_toast_panel.add_child(_toast_label)
+	add_child(_toast_panel)
+
+
+func toggle_build():
+	_build_panel.visible = not _build_panel.visible
+	if _build_panel.visible:
+		_settings_panel.visible = false
+
+
+var _agent_colors = {}  # agent id -> Color, from the layout
+
+
+func set_layout(layout: Dictionary):
+	_build_panel.set_layout(layout)
+	_agent_colors.clear()
+	for a in layout.get("agents", []):
+		_agent_colors[a["id"]] = Color.html(a["color"])
+		if _cards.has(a["id"]):
+			_cards[a["id"]].swatch.color = _agent_colors[a["id"]]
+			_cards[a["id"]].name.text = "  " + a["name"]
+
+
+func remove_agent(agent_id):
+	if _cards.has(agent_id):
+		_cards[agent_id].panel.queue_free()
+		_cards.erase(agent_id)
+	_agents.erase(agent_id)
+
+
+func show_hint(text: String):
+	_hint_label.text = text
+	_hint_panel.visible = text != ""
+
+
+func show_error(text: String):
+	if text == "":
+		return
+	_toast_label.text = text
+	_toast_panel.visible = true
+	_toast_until = Time.get_ticks_msec() / 1000.0 + 4.0
+	_build_panel.form_failed()
+
+
+func _process(_delta):
+	if _toast_panel != null and _toast_panel.visible and Time.get_ticks_msec() / 1000.0 > _toast_until:
+		_toast_panel.visible = false

@@ -8,4 +8,5 @@ export interface Source {
   resolveApproval(id: string, approved: boolean): Promise<void>;
   cancelMission(): Promise<void>;
   stop(): Promise<void>;
+  layoutChanged?(layout: import("./layout.ts").BaseLayout): Promise<void>;
 }

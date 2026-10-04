@@ -13,17 +13,14 @@ export type AgentState =
   | "error" // something failed, at the repair bay
   | "complete"; // finished its part, heading home
 
-export type BuildingId =
-  | "command_centre"
-  | "research_lab"
-  | "code_factory"
-  | "knowledge_library"
-  | "human_approval";
+import type { BaseLayout } from "./layout.ts";
 
+// Buildings are player-defined (see layout.ts); ids are strings like "research_lab".
+export type BuildingId = string;
 export type SpotId = "rally_point" | "repair_bay";
-export type LocationId = BuildingId | SpotId;
+export type LocationId = string; // a building id or a spot id
 
-export type AgentRole = "commander" | "researcher" | "scout" | "analyst" | "coder" | "writer" | "reviewer";
+export type AgentRole = string; // the agent's id for built-ins, "custom" otherwise
 
 export interface Agent {
   id: string;
@@ -97,11 +94,15 @@ export interface WorldSnapshot {
   resources: Resources;
   log: LogLine[];
   links: { missionControl: string | null };
+  layout: BaseLayout;
 }
 
 // A recorded mission: every world event between mission start and a few seconds after it
 // ended, with the time it happened. Used by the game's mission replay.
-export type RecordedEvent = Exclude<ServerEvent, { type: "snapshot" } | { type: "replay" } | { type: "error" }> & { ts: number };
+export type RecordedEvent = Exclude<
+  ServerEvent,
+  { type: "snapshot" } | { type: "replay" } | { type: "error" } | { type: "layout.update" } | { type: "agent.removed" }
+> & { ts: number };
 
 export interface Replay {
   mission: Mission;
@@ -119,6 +120,8 @@ export type ServerEvent =
   | { type: "resource.update"; resources: Resources }
   | { type: "log"; line: LogLine }
   | { type: "replay"; replay: Replay | null }
+  | { type: "layout.update"; layout: BaseLayout }
+  | { type: "agent.removed"; agentId: string }
   | { type: "error"; message: string };
 
 export type ServerMessage = ServerEvent & { seq: number };
@@ -129,4 +132,11 @@ export type ClientCommand =
   | { type: "mission.create"; title: string }
   | { type: "approval.resolve"; id: string; approved: boolean }
   | { type: "mission.cancel" }
-  | { type: "replay.request"; missionId?: string };
+  | { type: "replay.request"; missionId?: string }
+  // Build mode (validated in layout.ts)
+  | { type: "layout.building.upsert"; building: Record<string, unknown> }
+  | { type: "layout.building.remove"; id: string }
+  | { type: "layout.spot.move"; id: string; x: number; z: number }
+  | { type: "layout.agent.upsert"; agent: Record<string, unknown> }
+  | { type: "layout.agent.remove"; id: string }
+  | { type: "layout.reset" };

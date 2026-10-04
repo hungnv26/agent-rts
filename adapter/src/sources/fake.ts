@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { BuildingId } from "../contract.ts";
+import { homeOf } from "../layout.ts";
 import type { Source } from "../source.ts";
 import type { World } from "../world.ts";
 
@@ -165,6 +166,15 @@ export class FakeSource implements Source {
     w.setAgent("analyst", { state: "complete", detail: "Key trends extracted" });
     w.setAgent("researcher", { state: "idle" });
     w.setAgent("scout", { state: "idle" });
+
+    // Characters built in Build mode take a turn at their home building.
+    for (const def of w.layout.agents.filter((a) => !a.builtin)) {
+      const id = t(`custom_${def.id}`);
+      w.upsertTask({ id, title: `${def.name}: ${def.job}`.slice(0, 120), agentId: def.id });
+      await this.work(def.id, id, homeOf(w.layout, def.id), def.job.slice(0, 80), 3000, signal);
+      w.upsertTask({ id, status: "done", result: "Done" });
+      w.setAgent(def.id, { state: "complete", detail: "Done" });
+    }
 
     await this.work("coder", t("chart"), "code_factory", "python_sandbox: matplotlib chart", 4000, signal);
     if (this.opts.injectError) {

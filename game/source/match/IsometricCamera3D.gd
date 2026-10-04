@@ -93,7 +93,8 @@ func _calculate_screen_move_vector() -> Vector2:
 
 	var move_vector = Vector2.ZERO
 	# Don't pan with WASD while the player is typing into a text field.
-	if not get_viewport().gui_get_focus_owner() is LineEdit:
+	var focus = get_viewport().gui_get_focus_owner()
+	if not (focus is LineEdit or focus is TextEdit):
 		move_vector = Vector2(
 			Input.get_axis("move_map_left", "move_map_right"),
 			Input.get_axis("move_map_up", "move_map_down")

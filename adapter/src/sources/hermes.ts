@@ -2,7 +2,8 @@ import { randomUUID } from "node:crypto";
 import WebSocket from "ws";
 import type { Source } from "../source.ts";
 import type { World } from "../world.ts";
-import { HERMES_TO_AGENT, HermesTranslator } from "./hermes-translator.ts";
+import type { AgentDef, BaseLayout } from "../layout.ts";
+import { HermesTranslator } from "./hermes-translator.ts";
 
 export interface HermesOptions {
   baseUrl: string; // http://127.0.0.1:8000
@@ -91,7 +92,7 @@ export class HermesSource implements Source {
     const ws = new WebSocket(wsUrl);
     run.ws = ws;
     run.timer = setTimeout(() => this.fail(run, "Mission timed out."), this.opts.missionTimeoutMs);
-    ws.on("open", () => ws.send(JSON.stringify({ type: "chat_message", content: missionPrompt(title), chat_id: chatId })));
+    ws.on("open", () => ws.send(JSON.stringify({ type: "chat_message", content: missionPrompt(title, w.layout), chat_id: chatId })));
     ws.on("message", (data) => {
       if (this.run !== run || run.closed) return;
       let frame: unknown;
@@ -228,10 +229,39 @@ export class HermesSource implements Source {
         temperature: a.temperature,
       });
     }
-    const ids = new Set(agents.map((a) => a.id));
-    const missing = Object.keys(HERMES_TO_AGENT).filter((id) => !ids.has(id));
+    await this.syncCustomAgents(this.world.layout, agents);
+    const ids = new Set((await this.api("GET", "/api/subagents") as any[]).map((a) => a.id));
+    const missing = this.world.layout.agents.filter((a) => a.hermesId !== orch && !ids.has(a.hermesId)).map((a) => a.hermesId);
     if (missing.length) this.world.logLine(`Hermes is missing agents: ${missing.join(", ")} (is the agentrts plugin mounted?)`, "warn");
     this.rosterReady = true;
+  }
+
+  // Characters created in Build mode are real Hermes sub-agents under the orchestrator.
+  async layoutChanged(layout: BaseLayout): Promise<void> {
+    try {
+      await this.syncCustomAgents(layout, (await this.api("GET", "/api/subagents")) as any[]);
+    } catch (e) {
+      this.world.logLine(`Couldn't update Hermes agents: ${errText(e)}`, "warn");
+    }
+  }
+
+  private async syncCustomAgents(layout: BaseLayout, existing: any[]) {
+    const orch = this.opts.orchestratorId;
+    const model = existing.find((a) => a.id === orch)?.model ?? existing[0]?.model ?? "agentrts-qwen3";
+    const wanted = new Map(layout.agents.filter((a) => !a.builtin).map((a) => [a.hermesId, a]));
+    for (const [hermesId, def] of wanted) {
+      const cur = existing.find((a) => a.id === hermesId);
+      const body = customAgentBody(def, model, orch);
+      if (!cur || cur.system_prompt !== body.system_prompt || cur.name !== body.name || cur.skills !== body.skills) {
+        await this.api("POST", "/api/subagents", body);
+      }
+    }
+    // Remove Hermes agents for characters deleted in Build mode (only ours: rts_*).
+    for (const a of existing) {
+      if (typeof a.id === "string" && a.id.startsWith("rts_") && !wanted.has(a.id)) {
+        await this.api("DELETE", `/api/subagents/${a.id}`);
+      }
+    }
   }
 
   private async api(method: string, path: string, body?: unknown): Promise<unknown> {
@@ -246,18 +276,34 @@ export class HermesSource implements Source {
   }
 }
 
+// Skills a Build-mode character can have (the "code" sandbox stays with the built-in Coder).
+const SKILL_TO_HERMES: Record<string, string> = { web: "web_search", reasoning: "reasoning" };
+
+function customAgentBody(def: AgentDef, model: string, orch: string) {
+  return {
+    id: def.hermesId,
+    name: def.name,
+    system_prompt: `You are ${def.name}. ${def.job}`,
+    model,
+    agent_type: "agent",
+    parent_id: orch,
+    skills: SKILL_TO_HERMES[def.skill] ?? "reasoning",
+    x: 700,
+    y: 200,
+    temperature: 0.3,
+  };
+}
+
 // The small local model plans better with the team spelled out.
-export function missionPrompt(title: string): string {
+export function missionPrompt(title: string, layout: BaseLayout): string {
+  const team = layout.agents
+    .filter((a) => a.hermesId !== "jarvis")
+    .map((a) => `- ${a.name} (${a.hermesId}): ${a.job}`);
   return [
     `Mission: ${title}`,
     "",
     "Plan this as a short sequence (at most 5 steps) using only this team:",
-    "- Search Agent (research): deep research; searches the web and reads sources.",
-    "- Scout (scout): quick scan of the latest news and announcements.",
-    "- Data Analyst (insights): extracts key facts, numbers and trends from what was gathered.",
-    "- Code Engineer (code): only if the mission needs code, calculations or a chart.",
-    "- Writer (writer): drafts the report from the findings.",
-    "- Reviewer (reviewer): always the last step; checks the result for accuracy and gaps.",
+    ...team,
     "",
     "Finish with a concise report in Markdown: a one-line summary, key findings as bullets, and sources.",
   ].join("\n");

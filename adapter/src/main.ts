@@ -3,6 +3,8 @@ import { startServer } from "./server.ts";
 import type { Source } from "./source.ts";
 import { FakeSource } from "./sources/fake.ts";
 import { HermesSource } from "./sources/hermes.ts";
+import { Base } from "./base.ts";
+import { loadLayout } from "./layout.ts";
 import { MissionControlSink } from "./sinks/mission-control.ts";
 import { World } from "./world.ts";
 
@@ -33,7 +35,9 @@ async function makeSource(name: string): Promise<Source> {
   throw new Error(`unknown ADAPTER_SOURCE "${name}"`);
 }
 
-const world = new World(sourceName);
+// The player's base (Build mode) lives next to the other runtime data.
+const layoutPath = env.LAYOUT_PATH ?? new URL("../../.data/base.json", import.meta.url).pathname;
+const world = new World(sourceName, Date.now, loadLayout(layoutPath));
 const source = await makeSource(sourceName);
 await source.start(world);
 
@@ -49,7 +53,7 @@ if (env.MC_URL && env.MC_API_KEY && env.MC_SYNC !== "0") {
   await sink.start(world);
 }
 
-await startServer(world, source, port);
+await startServer(world, source, port, "127.0.0.1", new Base(world, source, layoutPath));
 console.log(`[adapter] source=${sourceName} ws://127.0.0.1:${port}/world mission-control=${sink ? env.MC_URL : "off"}`);
 
 if (env.ADAPTER_VERBOSE === "1") world.on("message", (m) => console.log(JSON.stringify(m)));

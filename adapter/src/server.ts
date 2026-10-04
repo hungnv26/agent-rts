@@ -1,6 +1,8 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { WebSocketServer, type WebSocket } from "ws";
+import { type Base, isLayoutCommand } from "./base.ts";
 import type { ClientCommand, ServerMessage } from "./contract.ts";
+import { LayoutError } from "./layout.ts";
 import type { Source } from "./source.ts";
 import type { World } from "./world.ts";
 
@@ -30,16 +32,31 @@ export function parseCommand(raw: string): ClientCommand | null {
       return { type: "mission.cancel" };
     case "replay.request":
       return typeof c.missionId === "string" ? { type: "replay.request", missionId: c.missionId } : { type: "replay.request" };
+    case "layout.building.upsert":
+      return c.building && typeof c.building === "object" ? { type: c.type, building: c.building as Record<string, unknown> } : null;
+    case "layout.agent.upsert":
+      return c.agent && typeof c.agent === "object" ? { type: c.type, agent: c.agent as Record<string, unknown> } : null;
+    case "layout.building.remove":
+    case "layout.agent.remove":
+      return typeof c.id === "string" ? { type: c.type, id: c.id } : null;
+    case "layout.spot.move":
+      return typeof c.id === "string" && typeof c.x === "number" && typeof c.z === "number" ? { type: c.type, id: c.id, x: c.x, z: c.z } : null;
+    case "layout.reset":
+      return { type: "layout.reset" };
     default:
       return null;
   }
 }
 
 // HTTP (health, state, commands for scripts) + WebSocket (/world) for game clients.
-export function startServer(world: World, source: Source, port: number, host = "127.0.0.1"): Promise<Server> {
+export function startServer(world: World, source: Source, port: number, host = "127.0.0.1", base: Base | null = null): Promise<Server> {
   const clients = new Set<WebSocket>();
 
   const handle = async (cmd: ClientCommand): Promise<void> => {
+    if (isLayoutCommand(cmd)) {
+      if (!base) throw new LayoutError("Build mode is not available.");
+      return base.apply(cmd);
+    }
     switch (cmd.type) {
       case "hello":
         return;
@@ -75,7 +92,7 @@ export function startServer(world: World, source: Source, port: number, host = "
         await handle(cmd);
         return json(200, { ok: true });
       } catch (e) {
-        return json(500, { error: String(e) });
+        return json(e instanceof LayoutError ? 400 : 500, { error: e instanceof Error ? e.message : String(e) });
       }
     }
     json(404, { error: "not found" });
@@ -96,7 +113,11 @@ export function startServer(world: World, source: Source, port: number, host = "
         ws.send(JSON.stringify(msg));
         return;
       }
-      handle(cmd).catch((e) => world.logLine(`Command ${cmd.type} failed: ${e}`, "error"));
+      handle(cmd).catch((e) => {
+        // Build-mode problems go back to the client that asked; anything else is logged.
+        if (e instanceof LayoutError) ws.send(JSON.stringify({ type: "error", seq: world.currentSeq, message: e.message } satisfies ServerMessage));
+        else world.logLine(`Command ${cmd.type} failed: ${e}`, "error");
+      });
     });
     ws.on("close", () => clients.delete(ws));
     ws.on("error", () => clients.delete(ws));

@@ -60,6 +60,24 @@ ahead, or **▶ Replay** in the report to watch it again.
 Prerequisites: Docker (Colima with 6 GB is enough), Node 23.6+ (the adapter runs TypeScript
 natively), pnpm, Godot 4.4+ (`brew install --cask godot`) and Ollama.
 
+### Build mode
+
+Click **Build** (top right) to design your own base. Everything you build does real work:
+
+- **Buildings:** add one with a name, model and colour, and choose the work done there (web
+  research, code & data, knowledge & notes, or a meeting point). Click **Place on map**, then
+  click where it should go. Agents whose tools match drive to your building. Any building,
+  the Rally Point and the Repair Bay can be moved; your own buildings can be removed (the
+  Command Centre and Human Approval are permanent).
+- **Characters:** create one with a name, a job description, a skill (web research or thinking
+  only), a vehicle, a colour and a home building. Each character is created as a real Hermes
+  sub-agent under the Commander, so the next mission can delegate to it. Built-in characters
+  can be renamed and restyled; your own can be removed.
+- **Reset base** (press twice) restores the default layout.
+
+The base is saved by the adapter in `.data/base.json`, so it survives restarts. Edits are
+blocked while a mission is running.
+
 ### Settings
 
 **Settings** (top right) changes display mode (window or fullscreen), window resolution

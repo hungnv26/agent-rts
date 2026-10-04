@@ -1,5 +1,5 @@
 import type { Agent, AgentState, Mission, ServerMessage, Task, TaskStatus } from "../contract.ts";
-import { ROSTER, type World } from "../world.ts";
+import type { World } from "../world.ts";
 
 // Mirrors the world into Mission Control (builderz-labs/mission-control) over its REST API:
 // agents and their status, one MC task per mission plus one per agent step, the Human
@@ -120,7 +120,7 @@ export class MissionControlSink {
 
   private async registerAgents() {
     const existing = new Set<string>(((await this.api("GET", "/api/agents?limit=200")).agents ?? []).map((a: any) => a.name));
-    const wanted = ROSTER.map((r) => ({ id: r.id, role: MC_ROLE[r.role] ?? "agent" }));
+    const wanted = this.world.layout.agents.map((a) => ({ id: a.id, role: MC_ROLE[a.id] ?? "agent" }));
     for (const a of wanted) {
       if (existing.has(mcName(a.id))) continue;
       await this.api("POST", "/api/agents/register", {
@@ -140,6 +140,8 @@ export class MissionControlSink {
         return this.onTask(m.task);
       case "agent.state":
         return this.onAgent(m.agent);
+      case "layout.update":
+        return this.registerAgents(); // new characters from Build mode
       case "approval.upsert":
         if (m.approval.status === "pending") {
           await this.event("approval:requested", m.approval.agentId ?? "reviewer");

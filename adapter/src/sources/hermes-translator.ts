@@ -1,4 +1,4 @@
-import type { BuildingId } from "../contract.ts";
+import { type BaseLayout, buildingForTool } from "../layout.ts";
 import type { World } from "../world.ts";
 
 // Translates Hermes Synapse WebSocket frames for one mission into World updates.
@@ -12,39 +12,18 @@ import type { World } from "../world.ts";
 //   chat_message  {role:"assistant", chat_id, content, cost_usd}  final answer
 //   logs_update   {logs:[{session_id, prompt_tokens_estimate, completion_tokens_estimate, cost_usd}]}
 
-// Hermes sub-agent id -> unit on the map. The orchestrator (jarvis) is the Commander.
-export const HERMES_TO_AGENT: Record<string, string> = {
-  research: "researcher",
-  scout: "scout",
-  insights: "analyst",
-  code: "coder",
-  writer: "writer",
-  reviewer: "reviewer",
-};
-
 const COMMANDER = "commander";
 
-const TOOL_BUILDINGS: [RegExp, BuildingId][] = [
-  [/search|weather|rss|github|news|browse|fetch/i, "research_lab"],
-  [/execute|python|sandbox|code|command|shell/i, "code_factory"],
-  [/obsidian|rag|memory|document|knowledge|note/i, "knowledge_library"],
-];
-
-export function buildingForTool(tool: string): BuildingId | null {
-  for (const [re, b] of TOOL_BUILDINGS) if (re.test(tool)) return b;
-  return null;
-}
-
-export function agentForHermesId(hermesId: string, name = ""): string {
-  if (HERMES_TO_AGENT[hermesId]) return HERMES_TO_AGENT[hermesId];
-  if (hermesId === "analyst") return "analyst"; // Hermes' built-in analyst, if it is ever picked
+// Hermes sub-agent id -> unit on the map, from the layout (custom characters included).
+export function agentForHermesId(layout: BaseLayout, hermesId: string, name = ""): string {
+  const exact = layout.agents.find((a) => a.hermesId === hermesId);
+  if (exact) return exact.id;
+  if (hermesId === "analyst" && layout.agents.some((a) => a.id === "analyst")) return "analyst"; // Hermes' built-in analyst
   const n = `${hermesId} ${name}`.toLowerCase();
-  if (/review|qa|check/.test(n)) return "reviewer";
-  if (/code|engineer|dev/.test(n)) return "coder";
-  if (/scout|news/.test(n)) return "scout";
-  if (/search|research/.test(n)) return "researcher";
-  if (/writ|draft|report/.test(n)) return "writer";
-  return "analyst";
+  const byName = layout.agents.find((a) => n.includes(a.name.toLowerCase()));
+  if (byName) return byName.id;
+  const guess = /review|qa|check/.test(n) ? "reviewer" : /code|engineer|dev/.test(n) ? "coder" : /scout|news/.test(n) ? "scout" : /search|research/.test(n) ? "researcher" : /writ|draft|report/.test(n) ? "writer" : "analyst";
+  return layout.agents.some((a) => a.id === guess) ? guess : layout.agents[0]?.id ?? COMMANDER;
 }
 
 const DELEGATE_RE = /Step (\d+)\/(\d+): Delegating to agent '([^']*)' \(([^)]+)\)/;
@@ -185,7 +164,7 @@ export class HermesTranslator {
   private startStep(i: number, n: number, name: string, hermesId: string) {
     const w = this.world;
     if (this.step) this.completeStep("");
-    const agentId = agentForHermesId(hermesId, name);
+    const agentId = agentForHermesId(this.world.layout, hermesId, name);
     const taskId = `${this.missionId}:step${i}`;
     this.steps = n;
     this.step = { taskId, agentId, hermesId, name };
@@ -234,7 +213,7 @@ export class HermesTranslator {
     }
     const tool = TOOL_CALL_RE.exec(msg);
     if (tool) {
-      this.world.setAgent(s.agentId, { state: "working", building: buildingForTool(tool[1]), detail: toolDetail(tool[1], tool[2]) });
+      this.world.setAgent(s.agentId, { state: "working", building: buildingForTool(this.world.layout, tool[1]), detail: toolDetail(tool[1], tool[2]) });
       this.world.addTokens(200);
       return;
     }
