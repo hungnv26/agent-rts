@@ -116,3 +116,15 @@ test("Hermes source creates and deletes sub-agents for custom characters", async
     http.close();
   }
 });
+
+test("terrain is part of the base and can change during a mission", async () => {
+  const { world, base, src, path } = setup();
+  await src.start(world);
+  assert.equal(world.layout.terrain, "mars");
+  await src.createMission("x");
+  await base.apply({ type: "layout.terrain", terrain: "europa" });
+  assert.equal(world.layout.terrain, "europa");
+  assert.equal(JSON.parse(readFileSync(path, "utf8")).terrain, "europa");
+  await assert.rejects(base.apply({ type: "layout.terrain", terrain: "pluto" }), /Unknown terrain/);
+  await src.stop();
+});

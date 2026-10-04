@@ -14,8 +14,15 @@ var spots = {}  # id -> {"pos": Vector3, "color": Color, "label": String}
 var center = Vector3(16, 0, 16)
 var ui_scale = 1.0
 
+var road_color = Color(0.62, 0.42, 0.36)
 var _roads = {}  # location -> ShaderMaterial
 var _use = {}  # location -> smoothed 0..1
+
+
+func set_road_color(c: Color):
+	road_color = c
+	for mat in _roads.values():
+		mat.set_shader_parameter("dirt", c)
 
 
 func clear():
@@ -59,6 +66,7 @@ func _build_roads():
 		plane.size = Vector2(1.5, a.distance_to(b))
 		var mat = ShaderMaterial.new()
 		mat.shader = ROAD_SHADER
+		mat.set_shader_parameter("dirt", road_color)
 		var mi = MeshInstance3D.new()
 		mi.mesh = plane
 		mi.material_override = mat

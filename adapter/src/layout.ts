@@ -38,9 +38,17 @@ export interface AgentDef {
   builtin?: boolean;
 }
 
+// Ground and light themes. Purely visual, so they can change at any time.
+export const TERRAINS = [
+  "grassland", "sahara", "arctic", "beach", "canyon", // Earth
+  "mars", "moon", "venus", "europa", "titan", // other worlds
+] as const;
+export type Terrain = (typeof TERRAINS)[number];
+
 export interface BaseLayout {
   version: 1;
   size: number; // map is size x size, centred on size/2
+  terrain: Terrain;
   buildings: BuildingDef[];
   spots: SpotDef[];
   agents: AgentDef[];
@@ -70,6 +78,7 @@ export const VEHICLE_MODELS = [
 export const DEFAULT_LAYOUT: BaseLayout = {
   version: 1,
   size: 32,
+  terrain: "mars",
   buildings: [
     { id: "command_centre", label: "Command Centre", x: 16, z: 16, model: "CommandCenter", color: "#66ccff", capability: "command", builtin: true },
     { id: "research_lab", label: "Research Lab", x: 6.5, z: 6.5, model: "satelliteDish_large", color: "#59bfff", capability: "research", builtin: true },
@@ -106,6 +115,7 @@ export function loadLayout(path: string): BaseLayout {
     for (const b of DEFAULT_LAYOUT.buildings) if (!l.buildings.some((x) => x.id === b.id) && isCore(b.id)) l.buildings.push(structuredClone(b));
     for (const a of DEFAULT_LAYOUT.agents) if (!l.agents.some((x) => x.id === a.id)) l.agents.push(structuredClone(a));
     for (const s of DEFAULT_LAYOUT.spots) if (!l.spots.some((x) => x.id === s.id)) l.spots.push(structuredClone(s));
+    if (!TERRAINS.includes(l.terrain)) l.terrain = DEFAULT_LAYOUT.terrain;
     return l;
   } catch {
     return cloneLayout(DEFAULT_LAYOUT);
@@ -248,6 +258,11 @@ export function upsertAgent(l: BaseLayout, input: Record<string, unknown>): Agen
   if (!ID_RE.test(a.hermesId)) throw new LayoutError("Invalid character name.");
   l.agents.push(a);
   return a;
+}
+
+export function setTerrain(l: BaseLayout, terrain: unknown): void {
+  if (!TERRAINS.includes(terrain as Terrain)) throw new LayoutError("Unknown terrain.");
+  l.terrain = terrain as Terrain;
 }
 
 export function removeAgent(l: BaseLayout, id: string): AgentDef {

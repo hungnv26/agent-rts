@@ -8,6 +8,7 @@ import {
   removeAgent,
   removeBuilding,
   saveLayout,
+  setTerrain,
   upsertAgent,
   upsertBuilding,
 } from "./layout.ts";
@@ -35,7 +36,8 @@ export class Base {
 
   async apply(cmd: LayoutCommand): Promise<void> {
     const status = this.world.getMission()?.status;
-    if (status === "planning" || status === "running") {
+    // Terrain is only looks, so it may change mid-mission; structural edits may not.
+    if ((status === "planning" || status === "running") && cmd.type !== "layout.terrain") {
       throw new LayoutError("Finish or abort the current mission before changing the base.");
     }
     const next: BaseLayout = cmd.type === "layout.reset" ? cloneLayout(DEFAULT_LAYOUT) : cloneLayout(this.world.layout);
@@ -54,6 +56,9 @@ export class Base {
         break;
       case "layout.agent.remove":
         removeAgent(next, cmd.id);
+        break;
+      case "layout.terrain":
+        setTerrain(next, cmd.terrain);
         break;
       case "layout.reset":
         break;

@@ -139,4 +139,5 @@ export type ClientCommand =
   | { type: "layout.spot.move"; id: string; x: number; z: number }
   | { type: "layout.agent.upsert"; agent: Record<string, unknown> }
   | { type: "layout.agent.remove"; id: string }
+  | { type: "layout.terrain"; terrain: string }
   | { type: "layout.reset" };

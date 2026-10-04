@@ -954,6 +954,11 @@ func toggle_build():
 var _agent_colors = {}  # agent id -> Color, from the layout
 
 
+func set_terrain(id: String):
+	if _build_panel != null:
+		_build_panel.set_terrain(id)
+
+
 func set_layout(layout: Dictionary):
 	_build_panel.set_layout(layout)
 	_agent_colors.clear()

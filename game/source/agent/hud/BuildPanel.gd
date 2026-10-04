@@ -35,6 +35,7 @@ var _form = null  # {kind: "building"|"agent", data: {...}, editing: bool}
 var _body: VBoxContainer
 var _tab_buttons = {}
 var _reset_armed = false
+var _terrain = "mars"
 
 
 func setup(owner_hud):
@@ -67,7 +68,7 @@ func setup(owner_hud):
 	v.add_child(head)
 	var tabs = HBoxContainer.new()
 	tabs.add_theme_constant_override("separation", 6)
-	for t in [["Buildings", "buildings"], ["Characters", "agents"]]:
+	for t in [["Buildings", "buildings"], ["Characters", "agents"], ["Terrain", "terrain"]]:
 		var b = _small(t[0])
 		var key = t[1]
 		b.pressed.connect(_switch_tab.bind(key))
@@ -116,8 +117,10 @@ func _render():
 		return
 	if _tab == "buildings":
 		_render_buildings()
-	else:
+	elif _tab == "agents":
 		_render_agents()
+	else:
+		_render_terrain()
 
 
 func _render_buildings():
@@ -163,6 +166,44 @@ func _render_agents():
 	add.pressed.connect(func(): _open_agent_form(null))
 	_body.add_child(add)
 	_body.add_child(_hint("New characters are real Hermes agents: the Commander can give them work in the next mission."))
+
+
+func set_terrain(id: String):
+	_terrain = id
+	if _tab == "terrain":
+		_render()
+
+
+func _render_terrain():
+	const Terrains = preload("res://source/agent/Terrains.gd")
+	for group in ["Earth", "Planets"]:
+		_body.add_child(_field_label("On Earth" if group == "Earth" else "Other worlds"))
+		var flow = HFlowContainer.new()
+		flow.add_theme_constant_override("h_separation", 6)
+		flow.add_theme_constant_override("v_separation", 6)
+		for id in Terrains.ORDER:
+			var t = Terrains.PRESETS[id]
+			if t["group"] != group:
+				continue
+			flow.add_child(_terrain_button(id, t))
+		_body.add_child(flow)
+	_body.add_child(_hint("Terrain only changes the ground and light; it can change at any time, even mid-mission."))
+
+
+func _terrain_button(id: String, t: Dictionary) -> Button:
+	var b = _small(t["name"])
+	b.custom_minimum_size = Vector2(130, 34)
+	b.icon = _swatch_icon(t["a"], t["c"])
+	_paint(b, id == _terrain)
+	b.pressed.connect(func(): command.emit({"type": "layout.terrain", "terrain": id}))
+	return b
+
+
+static func _swatch_icon(a: Color, c: Color) -> ImageTexture:
+	var img = Image.create(16, 16, false, Image.FORMAT_RGBA8)
+	img.fill(a)
+	img.fill_rect(Rect2i(10, 0, 6, 16), c)
+	return ImageTexture.create_from_image(img)
 
 
 func _open_building_form(def):

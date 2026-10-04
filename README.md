@@ -73,6 +73,9 @@ Click **Build** (top right) to design your own base. Everything you build does r
   only), a vehicle, a colour and a home building. Each character is created as a real Hermes
   sub-agent under the Commander, so the next mission can delegate to it. Built-in characters
   can be renamed and restyled; your own can be removed.
+- **Terrain:** pick the ground and light: on Earth (Grassland, Sahara Desert, Arctic Ice,
+  Tropical Beach, Grand Canyon) or other worlds (Mars, the Moon, Venus, Europa, Titan). It's
+  only looks, so it can change at any time.
 - **Reset base** (press twice) restores the default layout.
 
 The base is saved by the adapter in `.data/base.json`, so it survives restarts. Edits are

@@ -14,6 +14,7 @@ const WorldDecorScript = preload("res://source/agent/WorldDecor.gd")
 const ReplayPlayerScript = preload("res://source/agent/replay/ReplayPlayer.gd")
 const Fx = preload("res://source/agent/Fx.gd")
 const SettingsScript = preload("res://source/agent/Settings.gd")
+const Terrains = preload("res://source/agent/Terrains.gd")
 
 const KENNEY = "res://assets/models/kenney-spacekit/"
 const COMMAND_CENTRE_SCENE = "res://source/match/units/structure-geometries/CommandCenter.tscn"
@@ -53,6 +54,8 @@ var _replay = null
 var _replaying = false
 var _replay_wait_id = ""
 var _placement = null  # {kind, payload, label, preview} while placing in Build mode
+var _terrain_id = ""
+var _env_original = null  # Mars keeps the original Open RTS environment exactly
 
 
 func _ready():
@@ -72,6 +75,7 @@ func _ready():
 	_decor = WorldDecorScript.new()
 	_decor.ui_scale = label_scale
 	add_child(_decor)
+	_apply_terrain("mars")
 	_replay = ReplayPlayerScript.new()
 	add_child(_replay)
 	_hud = AgentHUDScript.new()
@@ -220,6 +224,7 @@ static func _sig(def: Dictionary, keys: Array) -> String:
 # Bring the map in line with the layout: spawn, rebuild or remove buildings and agents.
 func _apply_layout(layout: Dictionary):
 	_layout = layout
+	_apply_terrain(layout.get("terrain", "mars"))
 	var human = $Players/Human
 	var wanted = {}
 	for def in layout.get("buildings", []):
@@ -262,6 +267,38 @@ func _apply_layout(layout: Dictionary):
 			_remove_agent(id)
 	_rebuild_decor()
 	_hud.set_layout(layout)
+
+
+# Ground pattern, road colour and light for a terrain theme (Terrains.gd).
+func _apply_terrain(id: String):
+	if id == _terrain_id:
+		return
+	_terrain_id = id
+	var t = Terrains.get_preset(id)
+	var mat = map.find_child("Terrain").mesh.material
+	if mat is ShaderMaterial:
+		Terrains.apply_to_material(mat, id)
+	var env_node = $WorldEnvironment
+	var sun = $DirectionalLight3D
+	if _env_original == null:
+		_env_original = {"env": env_node.environment, "sun_color": sun.light_color, "sun_energy": sun.light_energy}
+		env_node.environment = env_node.environment.duplicate()
+	var env = env_node.environment
+	if id == "mars":
+		env.ambient_light_source = _env_original["env"].ambient_light_source
+		env.ambient_light_color = _env_original["env"].ambient_light_color
+		env.ambient_light_energy = _env_original["env"].ambient_light_energy
+		sun.light_color = _env_original["sun_color"]
+		sun.light_energy = _env_original["sun_energy"]
+	else:
+		env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+		env.ambient_light_color = t["ambient"]
+		env.ambient_light_energy = t["ambient_energy"]
+		sun.light_color = t["sun"]
+		sun.light_energy = t["sun_energy"]
+	_decor.set_road_color(t["road"])
+	if _hud != null:
+		_hud.set_terrain(id)
 
 
 func _remove_agent(id):
@@ -606,10 +643,16 @@ func _setup_capture():
 			_hud._toggle_settings.call_deferred()
 		elif arg == "--open-build":
 			_hud.toggle_build.call_deferred()
+		elif arg == "--open-build-terrain":
+			_hud.toggle_build.call_deferred()
+			_hud._build_panel._switch_tab.call_deferred("terrain")
 		elif arg == "--open-build-character":
 			_hud.toggle_build.call_deferred()
 			_hud._build_panel._switch_tab.call_deferred("agents")
 			_hud._build_panel._open_agent_form.call_deferred(null)
+	if dir != "" and "--terrain-tour" in OS.get_cmdline_user_args():
+		_terrain_tour(dir, quit_after)
+		return
 	if dir == "" or times.is_empty():
 		return
 	DirAccess.make_dir_recursive_absolute(dir)
@@ -619,5 +662,18 @@ func _setup_capture():
 				var img = get_viewport().get_texture().get_image()
 				img.save_png("%s/shot_%03d.png" % [dir, int(t)])
 				if quit_after and t == times.max():
+					get_tree().quit()
+		)
+
+
+func _terrain_tour(dir: String, quit_after: bool):
+	DirAccess.make_dir_recursive_absolute(dir)
+	for i in Terrains.ORDER.size():
+		var id = Terrains.ORDER[i]
+		get_tree().create_timer(3.0 + i * 1.5, true, false, true).timeout.connect(func(): _apply_terrain(id))
+		get_tree().create_timer(3.9 + i * 1.5, true, false, true).timeout.connect(
+			func():
+				get_viewport().get_texture().get_image().save_png("%s/terrain_%02d_%s.png" % [dir, i, id])
+				if quit_after and i == Terrains.ORDER.size() - 1:
 					get_tree().quit()
 		)
