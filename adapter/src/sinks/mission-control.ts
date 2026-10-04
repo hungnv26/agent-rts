@@ -105,13 +105,20 @@ export class MissionControlSink {
     this.world.logLine(`Mission Control sync problem: ${e instanceof Error ? e.message : e}`, "warn");
   }
 
-  private async api(method: string, path: string, body?: unknown): Promise<any> {
+  private async api(method: string, path: string, body?: unknown, attempt = 0): Promise<any> {
     const res = await fetch(this.opts.url + path, {
       method,
       headers: { "x-api-key": this.opts.apiKey, "content-type": "application/json", "x-agent-name": "agent-rts" },
       body: body === undefined ? undefined : JSON.stringify(body),
       signal: AbortSignal.timeout(10_000),
     });
+    // A production Mission Control rate-limits writes (60/min); wait and retry instead of
+    // dropping the update. Writes are queued, so this only delays the mirror.
+    if (res.status === 429 && attempt < 4) {
+      const wait = Math.min(30, Number(res.headers.get("retry-after")) || 5 * (attempt + 1));
+      await new Promise((r) => setTimeout(r, wait * 1000));
+      return this.api(method, path, body, attempt + 1);
+    }
     const text = await res.text();
     if (!res.ok) throw new Error(`${method} ${path} -> ${res.status} ${text.slice(0, 160)}`);
     this.warned = false;

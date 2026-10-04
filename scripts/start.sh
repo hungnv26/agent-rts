@@ -51,7 +51,13 @@ echo "==> Mission Control"
 if listening "$(port_of "$MC_URL")"; then
   echo "  already running on $MC_URL"
 else
-  (cd vendor/mission-control && nohup pnpm dev < /dev/null > "$ROOT/.data/logs/mission-control.log" 2>&1 & echo $! > "$ROOT/.data/mission-control.pid"; disown)
+  # Production build (dev mode shows React/CSP debug overlays); build once if missing.
+  if [[ ! -f vendor/mission-control/.next/standalone/server.js ]]; then
+    echo "  building Mission Control (first run, a few minutes)…"
+    (cd vendor/mission-control && pnpm build > "$ROOT/.data/logs/mc-build.log" 2>&1) || { echo "  build failed, see .data/logs/mc-build.log"; exit 1; }
+  fi
+  (cd vendor/mission-control && HOSTNAME=127.0.0.1 PORT="$(port_of "$MC_URL")" nohup bash scripts/start-standalone.sh \
+    < /dev/null > "$ROOT/.data/logs/mission-control.log" 2>&1 & echo $! > "$ROOT/.data/mission-control.pid"; disown)
   wait_http "$MC_URL/api/agents" "Mission Control" 120 "x-api-key: $MC_API_KEY" || true
 fi
 

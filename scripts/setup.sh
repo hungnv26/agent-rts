@@ -40,7 +40,7 @@ say "Building Hermes Synapse images"
 docker compose -p agentrts -f vendor/hermes-synapse/docker-compose.yml -f infra/hermes.override.yml build
 
 say "Installing Mission Control"
-(cd vendor/mission-control && pnpm install --frozen-lockfile)
+(cd vendor/mission-control && pnpm install --frozen-lockfile && pnpm build)
 
 say "Installing the adapter"
 (cd adapter && npm install --no-audit --no-fund)
