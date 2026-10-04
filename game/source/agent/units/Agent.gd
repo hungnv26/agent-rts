@@ -45,7 +45,6 @@ var _name_label: Label3D
 var _thinking_ring: MeshInstance3D
 var _geometry: Node3D
 var _geometry_base_y = 0.0
-var _ring_mat: StandardMaterial3D
 var _hidden = false
 
 
@@ -65,10 +64,6 @@ func _ready():
 	_name_label.modulate = role_color.lightened(0.25)
 	_badge = _make_label(20, Vector3(0, 1.35, 0))
 	_thinking_ring = _make_thinking_ring()
-	_ring_mat = Fx.additive(role_color, 0.35)
-	var ring = Fx.torus(0.85, 1.0, _ring_mat, 0.03)
-	ring.position.y = 0.05
-	add_child(ring)
 	_render_badge()
 
 
@@ -158,18 +153,10 @@ func _animate(delta, now):
 	if state == "working" and not _moving:
 		bob = 0.08 * abs(sin(now * 6.0))
 	_geometry.position.y = lerpf(_geometry.position.y, _geometry_base_y + bob, clampf(delta * 12.0, 0.0, 1.0))
-	var ring_alpha = 0.3
-	if state == "working" and not _moving:
-		ring_alpha = 0.55 + 0.3 * sin(now * 6.0)
-	elif state == "error":
-		ring_alpha = 0.4 + 0.4 * abs(sin(now * 5.0))
-	_ring_mat.albedo_color = Color(Color(1.0, 0.3, 0.3) if state == "error" else role_color, ring_alpha)
+
 	_thinking_ring.visible = state == "thinking" and not _hidden
-	if _thinking_ring.visible:
-		_thinking_ring.rotation.y = now * 3.0
-	if state == "error" or state == "approval":
-		_badge.modulate.a = 0.55 + 0.45 * abs(sin(now * 4.0))
-	elif _badge != null:
+
+	if _badge != null:
 		_badge.modulate.a = 1.0
 	_render_badge_moving_prefix()
 
@@ -192,13 +179,12 @@ func _make_label(font_size, pos):
 func _make_thinking_ring():
 	var ring = MeshInstance3D.new()
 	var torus = TorusMesh.new()
-	torus.inner_radius = 0.55
-	torus.outer_radius = 0.68
+	torus.inner_radius = 0.18
+	torus.outer_radius = 0.26
 	ring.mesh = torus
 	var mat = StandardMaterial3D.new()
-	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mat.albedo_color = Color(0.75, 0.62, 1.0, 0.85)
-	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.albedo_color = Color(0.95, 0.95, 0.98)
+	mat.roughness = 0.8
 	ring.material_override = mat
 	ring.position = Vector3(0, 1.1, 0)
 	ring.visible = false
@@ -206,14 +192,20 @@ func _make_thinking_ring():
 	return ring
 
 
+# Paint the vehicle's trim (Kenney's yellow/orange accent surfaces) in the agent's colour.
 func _setup_color():
 	var mat = StandardMaterial3D.new()
-	mat.vertex_color_use_as_albedo = true
 	mat.albedo_color = role_color
-	mat.metallic = 0.6
-	Utils.Match.traverse_node_tree_and_replace_materials_matching_albedo(
-		find_child("Geometry"), MATERIAL_ALBEDO_TO_REPLACE, MATERIAL_ALBEDO_TO_REPLACE_EPSILON, mat
-	)
+	mat.roughness = 0.6
+	for mi in find_child("Geometry").find_children("*", "MeshInstance3D", true, false):
+		for i in mi.get_surface_override_material_count():
+			var m = mi.get_active_material(i)
+			if m is BaseMaterial3D and _is_trim(m.albedo_color):
+				mi.set_surface_override_material(i, mat)
+
+
+static func _is_trim(c: Color) -> bool:
+	return c.r > 0.75 and c.g > 0.45 and c.b < 0.6 and c.r - c.b > 0.3
 
 
 func _setup_default_properties_from_constants():

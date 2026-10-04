@@ -66,5 +66,6 @@ material = SubResource("ShaderMaterial_mask")
 [node name="MinimapTextureRect" parent="HUD/MarginContainer/Minimap/MarginContainer" index="1"]
 texture = SubResource("ViewportTexture_minimap")
 
+
 [node name="Fog" parent="."]
 visible = false

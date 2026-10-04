@@ -12,6 +12,7 @@ const AgentHUDScript = preload("res://source/agent/hud/AgentHUD.gd")
 const WorldDecorScript = preload("res://source/agent/WorldDecor.gd")
 const ReplayPlayerScript = preload("res://source/agent/replay/ReplayPlayer.gd")
 const Fx = preload("res://source/agent/Fx.gd")
+const SettingsScript = preload("res://source/agent/Settings.gd")
 
 const CENTER = Vector3(16, 0, 16)
 const KENNEY = "res://assets/models/kenney-spacekit/"
@@ -92,6 +93,8 @@ var _pending_approvals = {}
 var _mission_id = ""
 var ui_scale = 1.0
 var mission_running = false
+var display_settings = SettingsScript.new()
+var _zoom_saved_at = 0.0
 var _mission_status = ""
 var _replay = null
 var _replaying = false
@@ -99,6 +102,9 @@ var _replay_wait_id = ""
 
 
 func _ready():
+	display_settings.load_settings()
+	if display_settings.has_saved_window:
+		display_settings.apply_window()
 	ui_scale = _compute_ui_scale()
 	for path in RTS_ONLY_NODES:
 		var node = get_node_or_null(path)
@@ -136,8 +142,7 @@ func _ready():
 	for id in SPOTS:
 		_decor.spots[id] = {"pos": SPOTS[id]["pos"], "color": SPOTS[id]["color"], "label": SPOTS[id]["label"]}
 	add_child(_decor)
-	_decor.build(map.find_child("Terrain").mesh.material)
-	_decor.apply_glow($WorldEnvironment, $DirectionalLight3D)
+	_decor.build()
 	_replay = ReplayPlayerScript.new()
 	add_child(_replay)
 	_hud = AgentHUDScript.new()
@@ -162,6 +167,11 @@ func _ready():
 	)
 	_replay.finished.connect(_end_replay)
 	_hud.set_connection(false)
+	_hud.settings_ref = display_settings
+	_hud.camera_ref = _camera
+	_hud.setting_changed.connect(_on_setting_changed)
+	display_settings.apply_render(get_viewport())
+	_camera.set_size_safely(display_settings.clamp_zoom(display_settings.zoom))
 	MatchSignals.unit_selected.connect(_on_unit_selected)
 	get_viewport().size_changed.connect(_apply_ui_scale)
 	_apply_ui_scale.call_deferred()
@@ -171,23 +181,56 @@ func _ready():
 func _process(delta):
 	# During a replay the ghosts drive the world's reactions instead of the real agents.
 	var actors = _replay.ghosts.values() if _replaying else _agents.values()
-	# Buildings glow while an agent is working inside.
+	# Each building's status line names the agents working inside.
 	for b in _buildings.values():
 		for agent in actors:
 			b.set_occupant(
 				agent.agent_id,
-				agent.state == "working" and agent.location == b.building_id and not agent.is_moving()
+				agent.state == "working" and agent.location == b.building_id and not agent.is_moving(),
+				agent.display_name
 			)
 	_buildings["human_approval"].alert = _replay.approval_pending if _replaying else not _pending_approvals.is_empty()
 	if _decor != null:
 		_decor.update_world(actors, delta)
+	# Remember mouse-wheel zoom too (saved at most once a second).
+	if absf(_camera.size - display_settings.zoom) > 0.01:
+		display_settings.zoom = _camera.size
+		var now = Time.get_ticks_msec() / 1000.0
+		if now - _zoom_saved_at > 1.0:
+			_zoom_saved_at = now
+			display_settings.save_settings()
 
 
 
 # HUD and labels are designed for a 1080p-tall window; scale them up on 4K/5K screens.
 func _compute_ui_scale():
 	var h = get_viewport().get_visible_rect().size.y
-	return clampf(h / 1080.0, 1.0, 3.0)
+	return clampf(h / 1080.0, 1.0, 3.0) * display_settings.ui_size
+
+
+func _on_setting_changed(key, value):
+	match key:
+		"fullscreen":
+			display_settings.fullscreen = value
+			display_settings.apply_window()
+		"window_size":
+			display_settings.window_size = value
+			display_settings.fullscreen = false
+			display_settings.apply_window()
+		"render_scale":
+			display_settings.render_scale = value
+			display_settings.apply_render(get_viewport())
+		"msaa":
+			display_settings.msaa = value
+			display_settings.apply_render(get_viewport())
+		"ui_size":
+			display_settings.ui_size = value
+			_apply_ui_scale()
+		"zoom":
+			display_settings.zoom = display_settings.clamp_zoom(value)
+			_camera.set_size_safely(display_settings.zoom)
+	display_settings.save_settings()
+	_hud.show_settings(display_settings, _camera.size)
 
 
 func _apply_ui_scale():
@@ -281,11 +324,9 @@ func _on_message(msg):
 			_hud.add_log(msg["line"])
 
 
-# Mission start/end shows up on the Command Centre: a pulse, plus a burst on success.
 func _on_mission_fx(m):
 	if m == null:
 		return
-	var cc = _buildings["command_centre"]
 	var status = m.get("status", "")
 	var is_new = m.get("id", "") != _mission_id
 	_mission_id = m.get("id", "")
@@ -294,16 +335,6 @@ func _on_mission_fx(m):
 		if _replaying and (status == "planning" or status == "running"):
 			_end_replay()
 	mission_running = status == "planning" or status == "running"
-	if is_new and mission_running:
-		cc.set_pulse_color(Color(0.4, 0.8, 1.0))
-		cc.pulse()
-	elif status == "completed":
-		cc.set_pulse_color(Color(0.4, 1.0, 0.55))
-		cc.pulse()
-		_decor.burst(Color(0.45, 1.0, 0.6))
-	elif status == "failed":
-		cc.set_pulse_color(Color(1.0, 0.35, 0.3))
-		cc.pulse()
 
 
 func _request_replay(mission_id):
@@ -340,16 +371,11 @@ func _on_replay(replay):
 func _end_replay():
 	if not _replaying:
 		return
-	var completed = _replay.mission.get("status", "") == "completed"
 	_replay.stop()
 	_replaying = false
 	for agent in _agents.values():
 		agent.set_hidden(false)
 	_hud.end_replay()
-	if completed:
-		var cc = _buildings["command_centre"]
-		cc.set_pulse_color(Color(0.4, 1.0, 0.55))
-		cc.pulse()
 
 
 func _apply_agent(a, snap):
@@ -398,6 +424,8 @@ func _setup_capture():
 				times.append(float(t))
 		elif arg == "--quit-after-capture":
 			quit_after = true
+		elif arg == "--open-settings":
+			_hud._toggle_settings.call_deferred()
 	if dir == "" or times.is_empty():
 		return
 	DirAccess.make_dir_recursive_absolute(dir)

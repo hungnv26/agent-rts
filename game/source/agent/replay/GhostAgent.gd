@@ -1,6 +1,6 @@
 extends Node3D
 
-# A holographic stand-in for an agent during a mission replay. Exposes the same fields the
+# A stand-in for an agent during a mission replay (a translucent copy of its vehicle). Exposes the same fields the
 # world reads from real agents (agent_id, state, location, role_color, is_moving()), so
 # buildings, conduits and work beams react to the replay exactly as they did live.
 
@@ -27,16 +27,16 @@ var _model: Node3D
 
 
 func setup(ui_scale: float):
-	_holo = Fx.additive(role_color, 0.55)
+	_holo = StandardMaterial3D.new()
+	_holo.albedo_color = Color(role_color.lightened(0.15), 0.7)
+	_holo.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	_holo.roughness = 0.8
 	_model = Fx.fitted(model_path, model_size)
 	for mi in _model.find_children("*", "MeshInstance3D", true, false):
 		mi.material_override = _holo
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_model.position.y = 0.15
 	add_child(_model)
-	var ring = Fx.torus(0.85, 1.0, Fx.additive(role_color, 0.45), 0.03)
-	ring.position.y = 0.05
-	add_child(ring)
 	var name_label = Fx.label(self, display_name, 26, role_color.lightened(0.3), ui_scale)
 	name_label.position = Vector3(0, 1.35, 0)
 	name_label.offset = Vector2(0, 40)
@@ -76,11 +76,10 @@ func _process(delta):
 	if _t < 1.0:
 		_t = min(1.0, _t + delta / MOVE_S)
 		var e = _t * _t * (3.0 - 2.0 * _t)
-		position = _from.lerp(_to, e) + Vector3(0, sin(_t * PI) * 0.35, 0)
+		position = _from.lerp(_to, e)
 		var dir = _to - _from
 		if dir.length() > 0.01:
 			look_at(global_position + Vector3(dir.x, 0, dir.z), Vector3.UP)
-	_holo.albedo_color.a = 0.45 + 0.15 * sin(now * 7.0 + position.x)
 	if _model != null:
 		_model.position.y = 0.15 + (0.08 * abs(sin(now * 6.0)) if state == "working" and _t >= 1.0 else 0.0)
 

@@ -15,10 +15,12 @@ is a real Hermes agent, and everything that lights up or moves reflects real wor
 | Writer (speeder) | drafts the report from the findings |
 | Reviewer (racer) | checks the result, then waits at Human Approval for your sign-off |
 
-Agents drive to the building that matches their tool (Research Lab, Code Factory, Knowledge
-Library). Buildings glow and animate only while someone works inside, and a data path lights
-up only while an agent uses it. A failed step sends the agent to the Repair Bay (its siren
-spins), and agents blocked on others wait at the Rally Point. Every mission, step, agent
+The base sits on the Martian sand of the original Open RTS, kept deliberately plain: no
+neon, no moving lights. Agents drive along dirt roads to the building that matches their
+tool (Research Lab, Code Factory, Knowledge Library), and each building's label says who is
+working inside. A failed step sends the agent to the striped Repair Bay, agents blocked on
+others wait in the painted Rally Point ring, and Human Approval reads "Waiting for you"
+when you're needed. Every mission, step, agent
 status and cost is mirrored into Mission Control for the operational view.
 
 ![The Reviewer waits at Human Approval](docs/screenshots/human-approval.png)
@@ -57,6 +59,13 @@ ahead, or **▶ Replay** in the report to watch it again.
 
 Prerequisites: Docker (Colima with 6 GB is enough), Node 23.6+ (the adapter runs TypeScript
 natively), pnpm, Godot 4.4+ (`brew install --cask godot`) and Ollama.
+
+### Settings
+
+**Settings** (top right) changes display mode (window or fullscreen), window size, 3D render
+resolution (50–100%, lower is faster on 4K/5K screens), anti-aliasing, the size of text and
+panels, and map zoom. Changes apply immediately and are saved for next time
+(`~/Library/Application Support/Godot/app_userdata/Agent RTS/agent_rts_settings.cfg`).
 
 ### Controls
 

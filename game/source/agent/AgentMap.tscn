@@ -1,20 +1,17 @@
 [gd_scene load_steps=5 format=3]
 
 [ext_resource type="PackedScene" path="res://source/match/Map.tscn" id="1_map"]
-[ext_resource type="Shader" path="res://source/agent/ground.gdshader" id="2_ground"]
-
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_ground"]
-shader = ExtResource("2_ground")
+[ext_resource type="Material" path="res://source/match/resources/materials/terrain.material.tres" id="2_terrain"]
 
 [sub_resource type="PlaneMesh" id="PlaneMesh_agent"]
 resource_local_to_scene = true
-material = SubResource("ShaderMaterial_ground")
+material = ExtResource("2_terrain")
 size = Vector2(36, 36)
 center_offset = Vector3(16, 0, 16)
 
 [sub_resource type="PlaneMesh" id="PlaneMesh_backdrop"]
-material = SubResource("ShaderMaterial_ground")
-size = Vector2(140, 140)
+material = ExtResource("2_terrain")
+size = Vector2(160, 160)
 center_offset = Vector3(16, 0, 16)
 
 [node name="Map" instance=ExtResource("1_map")]
@@ -24,7 +21,7 @@ size = Vector2(32, 32)
 mesh = SubResource("PlaneMesh_agent")
 
 [node name="Backdrop" type="MeshInstance3D" parent="Geometry"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.03, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.02, 0)
 cast_shadow = 0
 mesh = SubResource("PlaneMesh_backdrop")
 

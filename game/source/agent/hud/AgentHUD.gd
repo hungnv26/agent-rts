@@ -11,6 +11,7 @@ signal replay_requested(mission_id)
 signal replay_pause_toggled
 signal replay_speed_cycled
 signal replay_stop_requested
+signal setting_changed(key, value)
 
 const ROLE_COLORS = {
 	"commander": Color(0.85, 0.93, 1.0),
@@ -62,6 +63,13 @@ var _replay_report: Button
 var _timeline: Control
 var _deferred_result = null  # mission whose report waits for the replay to finish
 var replay_active = false
+var _settings_panel: PanelContainer
+var _chip_groups = {}  # key -> [{button, value}]
+var _zoom_slider: HSlider
+var _zoom_value: Label
+var _syncing_zoom = false
+var settings_ref = null
+var camera_ref = null
 var _mission = null
 var _approvals = {}
 var _agents = {}
@@ -80,6 +88,7 @@ func _ready():
 	_build_approval()
 	_build_result()
 	_build_replay()
+	_build_settings()
 
 
 # ---------- public API (driven by AgentMatch) ----------
@@ -330,6 +339,9 @@ func _build_top_bar():
 	_mc_button.visible = false
 	_mc_button.pressed.connect(func(): OS.shell_open(_mc_url))
 	row.add_child(_mc_button)
+	var gear = _button("Settings")
+	gear.pressed.connect(_toggle_settings)
+	row.add_child(gear)
 
 
 func _build_roster():
@@ -744,3 +756,122 @@ func _show_deferred_result():
 static func _fmt_ms(ms: float) -> String:
 	var s = int(ms / 1000.0)
 	return "%d:%02d" % [s / 60, s % 60]
+
+
+
+# ---------- settings ----------
+
+
+func _build_settings():
+	const Settings = preload("res://source/agent/Settings.gd")
+	_settings_panel = _panel(BG_SOLID)
+	_settings_panel.set_anchors_and_offsets_preset(PRESET_TOP_RIGHT)
+	_settings_panel.offset_left = -560
+	_settings_panel.offset_right = -16
+	_settings_panel.offset_top = 92
+	_settings_panel.grow_horizontal = GROW_DIRECTION_BEGIN  # widen leftwards, never off-screen
+	_settings_panel.visible = false
+	add_child(_settings_panel)
+	var v = VBoxContainer.new()
+	v.add_theme_constant_override("separation", 12)
+	_settings_panel.add_child(v)
+	var head = HBoxContainer.new()
+	var title = _label("SETTINGS", 14, MUTED)
+	title.size_flags_horizontal = SIZE_EXPAND_FILL
+	head.add_child(title)
+	var close = _button("Close")
+	close.custom_minimum_size = Vector2(72, 30)
+	close.pressed.connect(func(): _settings_panel.visible = false)
+	head.add_child(close)
+	v.add_child(head)
+	_chip_row(v, "Display", "fullscreen", [["Window", false], ["Fullscreen", true]])
+	var sizes = []
+	for sz in Settings.WINDOW_SIZES:
+		sizes.append(["%d×%d" % [sz.x, sz.y], sz])
+	_chip_row(v, "Window size", "window_size", sizes)
+	var scales = []
+	for r in Settings.RENDER_SCALES:
+		scales.append(["%d%%" % int(round(r * 100.0)), r])
+	_chip_row(v, "3D resolution", "render_scale", scales)
+	_chip_row(v, "Anti-aliasing", "msaa", [["Off", 0], ["2×", 1], ["4×", 2]])
+	_chip_row(v, "Text & panels", "ui_size", [["Small", 0.8], ["Normal", 1.0], ["Large", 1.25], ["X-Large", 1.5]])
+	var zoom_row = HBoxContainer.new()
+	zoom_row.add_theme_constant_override("separation", 10)
+	var zl = _label("Map zoom", 15)
+	zl.custom_minimum_size = Vector2(130, 0)
+	zoom_row.add_child(zl)
+	_zoom_slider = HSlider.new()
+	# Slider reads "closer" to the right: value = ZOOM_MAX + ZOOM_MIN - camera size.
+	_zoom_slider.min_value = Settings.ZOOM_MIN
+	_zoom_slider.max_value = Settings.ZOOM_MAX
+	_zoom_slider.step = 1.0
+	_zoom_slider.size_flags_horizontal = SIZE_EXPAND_FILL
+	_zoom_slider.custom_minimum_size = Vector2(220, 24)
+	_zoom_slider.value_changed.connect(
+		func(val):
+			if not _syncing_zoom:
+				setting_changed.emit("zoom", Settings.ZOOM_MAX + Settings.ZOOM_MIN - val)
+	)
+	zoom_row.add_child(_zoom_slider)
+	var fit = _button("Fit map")
+	fit.custom_minimum_size = Vector2(84, 30)
+	fit.pressed.connect(func(): setting_changed.emit("zoom", Settings.ZOOM_DEFAULT))
+	zoom_row.add_child(fit)
+	v.add_child(zoom_row)
+	v.add_child(_label("Lower 3D resolution runs faster on large screens; text stays sharp.", 12, MUTED))
+
+
+func _chip_row(parent: Control, title: String, key: String, options: Array):
+	var row = HBoxContainer.new()
+	row.add_theme_constant_override("separation", 6)
+	var l = _label(title, 15)
+	l.custom_minimum_size = Vector2(130, 0)
+	row.add_child(l)
+	_chip_groups[key] = []
+	for opt in options:
+		var b = _button(opt[0])
+		b.custom_minimum_size = Vector2(0, 30)
+		b.toggle_mode = true
+		var value = opt[1]
+		b.pressed.connect(func(): setting_changed.emit(key, value))
+		row.add_child(b)
+		_chip_groups[key].append({"button": b, "value": value})
+	parent.add_child(row)
+
+
+func _toggle_settings():
+	_settings_panel.visible = not _settings_panel.visible
+	if _settings_panel.visible and settings_ref != null and camera_ref != null:
+		show_settings(settings_ref, camera_ref.size)
+
+
+# Highlight the active option of each setting and sync the zoom slider.
+func show_settings(settings, camera_size: float):
+	const Settings = preload("res://source/agent/Settings.gd")
+	var current = {
+		"fullscreen": settings.fullscreen,
+		"window_size": settings.window_size,
+		"render_scale": settings.render_scale,
+		"msaa": settings.msaa,
+		"ui_size": settings.ui_size,
+	}
+	for key in _chip_groups:
+		for chip in _chip_groups[key]:
+			var on = _same(chip["value"], current[key])
+			chip["button"].set_pressed_no_signal(on)
+			var sb = (chip["button"].get_theme_stylebox("normal") as StyleBoxFlat).duplicate()
+			sb.bg_color = Color(0.2, 0.45, 0.85) if on else Color(0.16, 0.2, 0.3)
+			chip["button"].add_theme_stylebox_override("normal", sb)
+			chip["button"].add_theme_stylebox_override("pressed", sb)
+		if key == "window_size":
+			for chip in _chip_groups[key]:
+				chip["button"].disabled = settings.fullscreen
+	_syncing_zoom = true
+	_zoom_slider.value = Settings.ZOOM_MAX + Settings.ZOOM_MIN - camera_size
+	_syncing_zoom = false
+
+
+static func _same(a, b) -> bool:
+	if typeof(a) == TYPE_FLOAT or typeof(b) == TYPE_FLOAT:
+		return absf(float(a) - float(b)) < 0.001
+	return a == b
