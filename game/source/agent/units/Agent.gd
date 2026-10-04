@@ -48,6 +48,8 @@ var _geometry_base_y = 0.0
 var _hidden = false
 var _label_y = 1.35
 var _label_back = 0.8  # labels sit screen-up (north) of the vehicle, clear of its body
+var _route: MeshInstance3D  # dashed line to where the agent is going, in its colour
+var _route_mesh: ImmediateMesh
 
 
 func _ready():
@@ -69,6 +71,7 @@ func _ready():
 	_name_label.modulate = role_color.lightened(0.25)
 	_badge = _make_label(20, Vector3(0, _label_y, 0))
 	_thinking_ring = _make_thinking_ring()
+	_make_route()
 	_render_badge()
 
 
@@ -123,6 +126,7 @@ func _process(delta):
 
 	_animate(delta, now)
 	_place_labels()
+	_draw_route()
 
 
 func _apply(agent_dict, walk):
@@ -189,6 +193,70 @@ func _place_labels():
 		_name_label.global_position = p
 	if _badge != null:
 		_badge.global_position = p
+
+
+func _make_route():
+	_route_mesh = ImmediateMesh.new()
+	_route = MeshInstance3D.new()
+	_route.mesh = _route_mesh
+	_route.top_level = true
+	_route.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	var mat = StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.albedo_color = Color(role_color.lightened(0.15), 0.9)
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	_route.material_override = mat
+	add_child(_route)
+
+
+# Dashes along the navigation path still ahead of a moving agent (none when it stands).
+func _draw_route():
+	if _route_mesh == null:
+		return
+	_route_mesh.clear_surfaces()
+	var nav = find_child("Movement")
+	if not _moving or _hidden or nav == null:
+		return
+	var pts = [global_position]
+	var path = nav.get_current_navigation_path()
+	for i in range(nav.get_current_navigation_path_index(), path.size()):
+		pts.append(path[i])
+	if pts.size() < 2:
+		return
+	const DASH = 0.42
+	const GAP = 0.3
+	const HALF_W = 0.07
+	# Cumulative distance along the path, then one dash per (DASH + GAP) step.
+	var dist = [0.0]
+	for i in range(1, pts.size()):
+		dist.append(dist[i - 1] + Vector2(pts[i].x - pts[i - 1].x, pts[i].z - pts[i - 1].z).length())
+	var total = dist[dist.size() - 1]
+	if total < 0.05:
+		return
+	_route.global_transform = Transform3D.IDENTITY
+	_route_mesh.surface_begin(Mesh.PRIMITIVE_TRIANGLES)
+	for k in int(total / (DASH + GAP)) + 1:
+		var s0 = k * (DASH + GAP)
+		var s1 = min(s0 + DASH, total)
+		if s1 - s0 < 0.02:
+			continue
+		var p0 = _point_at(pts, dist, s0)
+		var p1 = _point_at(pts, dist, s1)
+		var dir = (p1 - p0).normalized()
+		var side = Vector3(-dir.z, 0, dir.x) * HALF_W
+		for v in [p0 - side, p0 + side, p1 + side, p0 - side, p1 + side, p1 - side]:
+			_route_mesh.surface_add_vertex(v)
+	_route_mesh.surface_end()
+
+
+static func _point_at(pts: Array, dist: Array, d: float) -> Vector3:
+	for i in range(1, pts.size()):
+		if d <= dist[i] or i == pts.size() - 1:
+			var seg = max(0.0001, dist[i] - dist[i - 1])
+			var p = pts[i - 1].lerp(pts[i], clampf((d - dist[i - 1]) / seg, 0.0, 1.0))
+			return Vector3(p.x, 0.07, p.z)
+	return Vector3(pts[0].x, 0.07, pts[0].z)
 
 
 func _make_thinking_ring():

@@ -46,6 +46,12 @@ test("fake mission visits every agent state and completes after approval", async
   for (let i = 1; i < msgs.length; i++) assert.ok(msgs[i].seq > msgs[i - 1].seq);
   assert.ok(world.snapshot().resources.tokensUsed > 0);
   assert.ok(world.snapshot().tasks.every((t) => t.status === "done"));
+
+  // the finished mission is remembered with its task count
+  const h = world.snapshot().history;
+  assert.equal(h.length, 1);
+  assert.equal(h[0].status, "completed");
+  assert.ok(h[0].tasksTotal > 0 && h[0].tasksDone === h[0].tasksTotal);
 });
 
 test("rejecting the approval fails the mission", async () => {

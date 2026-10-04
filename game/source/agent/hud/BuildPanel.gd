@@ -73,7 +73,7 @@ func setup(owner_hud):
 	reset.pressed.connect(func(): _on_reset(reset))
 	head.add_child(reset)
 	var close = _small("Close")
-	close.pressed.connect(func(): visible = false)
+	close.pressed.connect(func(): hud._switch_tab("mission"))
 	head.add_child(close)
 	v.add_child(head)
 	var tabs = HBoxContainer.new()

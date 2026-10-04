@@ -10,7 +10,9 @@ var building_id = ""
 var label = ""
 var model_path = ""
 var model_size = 3.0  # footprint (largest horizontal extent) the model is fitted to
-var accent = Color(0.4, 0.75, 1.0)
+var accent = Color(0.4, 0.75, 1.0)  # department colour
+var icon_kind = ""  # department icon for the name plate
+var snapshots = null  # HUD renderer for the name plate (Snapshots.gd)
 
 var alert = false:  # e.g. Human Approval has a pending request
 	set(value):
@@ -36,7 +38,30 @@ func _ready():
 	_status3d = Fx.label(self, "", 19, accent.lightened(0.2), ui_scale)
 	_status3d.position = Vector3(0, top, 0)
 	_status3d.offset = Vector2(0, -30)
+	if snapshots != null and icon_kind != "":
+		_make_name_plate(top, ui_scale)
 	_render_status()
+
+
+# The name as a plate (department icon + name on a dark pill), rendered once by the HUD.
+func _make_name_plate(top: float, ui_scale: float):
+	var plate = Sprite3D.new()
+	plate.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	plate.fixed_size = true
+	plate.no_depth_test = true
+	plate.render_priority = 2
+	plate.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+	plate.set_meta("base_px", 0.00052)
+	plate.pixel_size = 0.00052 * ui_scale
+	plate.add_to_group(Fx.LABEL_GROUP)
+	plate.position = Vector3(0, top, 0)
+	add_child(plate)
+	snapshots.building_badge(label, icon_kind, accent, func(t):
+		if is_instance_valid(plate):
+			plate.texture = t
+			_label3d.visible = false
+	)
+	_status3d.offset = Vector2(0, -46)
 
 
 func set_occupant(agent_id, working, display_name = ""):

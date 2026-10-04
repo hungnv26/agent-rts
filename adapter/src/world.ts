@@ -9,6 +9,7 @@ import {
   type LocationId,
   type LogLine,
   type Mission,
+  type MissionRecord,
   type RecordedEvent,
   type Replay,
   type Resources,
@@ -20,6 +21,7 @@ import {
 
 const LOG_LIMIT = 200;
 const REPLAY_KEEP = 5; // missions kept for replay
+const HISTORY_KEEP = 12; // finished missions listed in the game
 const REPLAY_TAIL_MS = 6000; // keep recording this long after a mission ends (agents walk home)
 const RECORDED = new Set(["agent.state", "task.upsert", "mission.upsert", "approval.upsert", "log", "resource.update"]);
 
@@ -63,6 +65,7 @@ export class World extends EventEmitter {
   private resources: Resources = { tokensUsed: 0, tokenBudget: null, costUsd: 0, costBudgetUsd: null };
   private log: LogLine[] = [];
   private recordings = new Map<string, Replay>();
+  history: MissionRecord[] = [];
   source: string;
   missionControlUrl: string | null = null;
   readonly now: () => number;
@@ -126,6 +129,7 @@ export class World extends EventEmitter {
       log: this.log,
       links: { missionControl: this.missionControlUrl },
       layout: this.layout,
+      history: this.history,
     };
   }
 
@@ -232,7 +236,16 @@ export class World extends EventEmitter {
     const done = patch.status === "completed" || patch.status === "failed" || patch.status === "cancelled";
     this.mission = { ...this.mission, ...patch, endedAt: done ? this.now() : this.mission.endedAt };
     this.emitEvent({ type: "mission.upsert", mission: this.mission });
+    if (done) this.remember(this.mission);
     return this.mission;
+  }
+
+  // Adds (or refreshes) a finished mission in the history; "history" tells main.ts to save it.
+  private remember(m: Mission) {
+    const tasks = [...this.tasks.values()].filter((t) => t.missionId === m.id);
+    const rec: MissionRecord = { ...structuredClone(m), tasksDone: tasks.filter((t) => t.status === "done").length, tasksTotal: tasks.length };
+    this.history = [rec, ...this.history.filter((h) => h.id !== m.id)].slice(0, HISTORY_KEEP);
+    this.emit("history", this.history);
   }
 
   upsertApproval(a: Partial<Approval> & { id: string }): Approval {

@@ -1,4 +1,5 @@
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { startServer } from "./server.ts";
 import type { Source } from "./source.ts";
 import { FakeSource } from "./sources/fake.ts";
@@ -38,6 +39,14 @@ async function makeSource(name: string): Promise<Source> {
 // The player's base (Build mode) lives next to the other runtime data.
 const layoutPath = env.LAYOUT_PATH ?? new URL("../../.data/base.json", import.meta.url).pathname;
 const world = new World(sourceName, Date.now, loadLayout(layoutPath));
+// Finished missions survive restarts (the game lists them and reopens their reports).
+const historyPath = join(dirname(layoutPath), "missions.json");
+try {
+  if (existsSync(historyPath)) world.history = JSON.parse(readFileSync(historyPath, "utf8"));
+} catch {
+  /* a damaged history file just starts empty */
+}
+world.on("history", (h) => writeFileSync(historyPath, JSON.stringify(h, null, 2)));
 const source = await makeSource(sourceName);
 await source.start(world);
 

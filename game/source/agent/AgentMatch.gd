@@ -6,6 +6,7 @@ extends "res://source/match/Match.gd"
 # player's layout, owned by the adapter and edited in Build mode; this scene reconciles the
 # map with it whenever it changes.
 
+const HudUi = preload("res://source/agent/hud/Ui.gd")
 const Departments = preload("res://source/agent/Departments.gd")
 const AgentScene = preload("res://source/agent/units/Agent.tscn")
 const BuildingScene = preload("res://source/agent/units/Building.tscn")
@@ -80,6 +81,7 @@ func _ready():
 	_replay = ReplayPlayerScript.new()
 	add_child(_replay)
 	_hud = AgentHUDScript.new()
+	_hud.model_path_for = func(model_name): return _model_path(model_name)
 	$HUD.add_child(_hud)
 	_client = WorldClientScript.new()
 	add_child(_client)
@@ -92,6 +94,8 @@ func _ready():
 	)
 	_hud.agent_focus_requested.connect(_focus_agent)
 	_hud.department_focus_requested.connect(func(dept): _camera.set_position_safely(Departments.centre(dept)))
+	_hud.building_focus_requested.connect(_focus_building)
+	_hud.view_fit_requested.connect(_fit_view)
 	_hud.replay_requested.connect(_request_replay)
 	_hud.replay_pause_toggled.connect(func(): _replay.toggle_pause())
 	_hud.replay_speed_cycled.connect(func(): _replay.cycle_speed())
@@ -216,6 +220,8 @@ func _make_building(def: Dictionary):
 	b.model_path = _model_path(def["model"])
 	b.model_size = 4.2 if def["id"] == "command_centre" else 3.6
 	b.accent = Color.html(def["color"])
+	b.icon_kind = _hud._dept_icon(Departments.of(def["capability"])) if _hud != null else ""
+	b.snapshots = _hud.snapshots if _hud != null else null
 	b.position = Vector3(def["x"], 0, def["z"])
 	b.set_meta("sig", _sig(def, ["label", "model", "color", "x", "z"]))
 	return b
@@ -522,8 +528,16 @@ func _apply_ui_scale():
 		_hud.set_ui_scale(ui_scale)
 	var minimap = get_node_or_null("HUD/MarginContainer")
 	if minimap != null:
+		const MINIMAP_ZOOM = 1.25  # a little bigger than Open RTS's, matching the HUD panels
 		minimap.pivot_offset = Vector2(0, minimap.size.y)
-		minimap.scale = Vector2(ui_scale, ui_scale)
+		minimap.scale = Vector2(ui_scale, ui_scale) * MINIMAP_ZOOM
+		minimap.add_theme_constant_override("margin_left", 12)
+		minimap.add_theme_constant_override("margin_bottom", 12)
+		var frame = minimap.get_node_or_null("Minimap")
+		if frame != null:
+			frame.add_theme_stylebox_override("panel", HudUi.panel_style(HudUi.BG, 8, 5))
+		if _hud != null:
+			_hud.set_minimap_width(minimap.size.x * MINIMAP_ZOOM)
 	for l in get_tree().get_nodes_in_group(Fx.LABEL_GROUP):
 		l.pixel_size = l.get_meta("base_px", 0.0008) * label_scale
 
@@ -662,8 +676,23 @@ func _on_agent_state_applied(agent):
 func _on_unit_selected(unit):
 	if "agent_id" in unit:
 		_hud.select_agent(unit.agent_id)
-	elif "building_id" in unit and unit.building_id == "human_approval":
-		_hud.open_approval_if_pending()
+	elif "building_id" in unit:
+		_hud.select_building(unit.building_id)
+		if unit.building_id == "human_approval":
+			_hud.open_approval_if_pending()
+
+
+func _focus_building(building_id):
+	var b = _bdef(building_id)
+	if b != null:
+		_camera.set_position_safely(Vector3(b["x"], 0, b["z"]))
+
+
+func _fit_view():
+	display_settings.zoom = display_settings.clamp_zoom(display_settings.ZOOM_DEFAULT)
+	_camera.set_size_safely(display_settings.zoom)
+	_move_camera_to_initial_position()
+	display_settings.save_settings()
 
 
 # Start framing the whole base (Open RTS starts on the player's units).
@@ -694,6 +723,10 @@ func _setup_capture():
 				times.append(float(t))
 		elif arg == "--quit-after-capture":
 			quit_after = true
+		elif arg.begins_with("--select-agent="):
+			get_tree().create_timer(3.0).timeout.connect(_hud.select_agent.bind(arg.substr(15)))
+		elif arg.begins_with("--select-building="):
+			get_tree().create_timer(3.0).timeout.connect(_hud.select_building.bind(arg.substr(18)))
 		elif arg == "--open-settings":
 			_hud._toggle_settings.call_deferred()
 		elif arg == "--open-build":

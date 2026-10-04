@@ -60,6 +60,12 @@ export interface Mission {
   link?: string | null; // deep link to this mission in Mission Control, when mirrored
 }
 
+// A finished mission, kept so the game can list recent missions and reopen their reports.
+export interface MissionRecord extends Mission {
+  tasksDone: number;
+  tasksTotal: number;
+}
+
 export interface Approval {
   id: string;
   missionId: string | null;
@@ -95,6 +101,7 @@ export interface WorldSnapshot {
   log: LogLine[];
   links: { missionControl: string | null };
   layout: BaseLayout;
+  history: MissionRecord[]; // finished missions, newest first
 }
 
 // A recorded mission: every world event between mission start and a few seconds after it
