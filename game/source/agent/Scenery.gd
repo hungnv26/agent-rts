@@ -59,6 +59,8 @@ func build(terrain: String):
 			s = rng.randf_range(1.2, 2.4)
 		elif kind == "crater":
 			s = rng.randf_range(1.5, 3.5)
+		elif kind == "alientree":
+			s = rng.randf_range(0.3, 0.5)  # the Quaternius trees are big at scale 1
 		var t = Transform3D(Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3.ONE * s), p)
 		if not placements.has(kind):
 			placements[kind] = []
