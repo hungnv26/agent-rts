@@ -7,6 +7,18 @@ signal mission_requested(title)
 signal mission_cancel_requested
 signal approval_resolved(id, approved)
 signal agent_focus_requested(agent_id)
+signal replay_requested(mission_id)
+signal replay_pause_toggled
+signal replay_speed_cycled
+signal replay_stop_requested
+
+const ROLE_COLORS = {
+	"researcher": Color(0.35, 0.8, 1.0),
+	"coder": Color(1.0, 0.6, 0.25),
+	"analyst": Color(0.55, 0.95, 0.5),
+	"reviewer": Color(0.85, 0.55, 1.0),
+	"approval": Color(1.0, 0.6, 0.2),
+}
 
 const BG = Color(0.06, 0.08, 0.13, 0.86)
 const BG_SOLID = Color(0.07, 0.09, 0.15, 0.97)
@@ -37,6 +49,16 @@ var _result_title: Label
 var _result_text: RichTextLabel
 
 var _mc_url = ""
+var _replay_panel: PanelContainer
+var _replay_title: Label
+var _replay_time: Label
+var _replay_caption: Label
+var _replay_pause: Button
+var _replay_speed: Button
+var _replay_report: Button
+var _timeline: Control
+var _deferred_result = null  # mission whose report waits for the replay to finish
+var replay_active = false
 var _mission = null
 var _approvals = {}
 var _agents = {}
@@ -54,6 +76,7 @@ func _ready():
 	_build_log()
 	_build_approval()
 	_build_result()
+	_build_replay()
 
 
 # ---------- public API (driven by AgentMatch) ----------
@@ -465,6 +488,9 @@ func _build_result():
 	copy.pressed.connect(func(): DisplayServer.clipboard_set(_mission.get("result", "") if _mission else ""))
 	var close = _button("Close", true)
 	close.pressed.connect(func(): _result_panel.visible = false)
+	var replay = _button("▶ Replay")
+	replay.pressed.connect(_on_replay_pressed)
+	row.add_child(replay)
 	row.add_child(mc)
 	row.add_child(copy)
 	row.add_child(close)
@@ -524,6 +550,10 @@ func _show_result(m):
 		body = "No result was produced."
 	_result_text.text = _markdown_to_bbcode(body)
 	(_result_panel.get_meta("mc_button") as Button).visible = _mc_url != ""
+	if replay_active:
+		_deferred_result = m
+		_replay_report.visible = true
+		return
 	_result_panel.visible = status != "cancelled"
 
 
@@ -564,3 +594,148 @@ static func _fmt_int(n: int) -> String:
 		out = "," + s.substr(s.length() - 3) + out
 		s = s.substr(0, s.length() - 3)
 	return s + out
+
+
+
+# ---------- mission replay ----------
+
+
+# Timeline strip: elapsed fill, a marker per step (agent colour) and the playhead.
+class Timeline:
+	extends Control
+	var progress = 0.0
+	var markers = []  # [{x: 0..1, color}]
+
+	func _draw():
+		var r = Rect2(Vector2.ZERO, size)
+		draw_rect(Rect2(0, size.y * 0.35, size.x, size.y * 0.3), Color(0.16, 0.2, 0.3))
+		draw_rect(Rect2(0, size.y * 0.35, size.x * progress, size.y * 0.3), Color(0.4, 0.75, 1.0, 0.85))
+		for m in markers:
+			var x = clampf(m["x"], 0.0, 1.0) * r.size.x
+			draw_rect(Rect2(x - 2, 0, 4, size.y), m["color"])
+		var px = progress * r.size.x
+		draw_circle(Vector2(px, size.y * 0.5), size.y * 0.42, Color.WHITE)
+
+
+func _build_replay():
+	_replay_panel = _panel(Color(0.05, 0.07, 0.12, 0.92))
+	_replay_panel.set_anchors_and_offsets_preset(PRESET_CENTER_BOTTOM)
+	_replay_panel.offset_left = -430
+	_replay_panel.offset_right = 430
+	_replay_panel.offset_top = -196
+	_replay_panel.offset_bottom = -84
+	(_replay_panel.get_theme_stylebox("panel") as StyleBoxFlat).border_color = ACCENT
+	_replay_panel.visible = false
+	add_child(_replay_panel)
+	var v = VBoxContainer.new()
+	v.add_theme_constant_override("separation", 6)
+	_replay_panel.add_child(v)
+	var head = HBoxContainer.new()
+	head.add_theme_constant_override("separation", 10)
+	v.add_child(head)
+	head.add_child(_label("▶ REPLAY", 14, ACCENT))
+	_replay_title = _label("", 15)
+	_replay_title.size_flags_horizontal = SIZE_EXPAND_FILL
+	_replay_title.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	_replay_title.custom_minimum_size = Vector2(200, 0)
+	head.add_child(_replay_title)
+	_replay_time = _label("", 14, MUTED)
+	head.add_child(_replay_time)
+	_replay_pause = _button("Pause")
+	_replay_pause.custom_minimum_size = Vector2(80, 30)
+	_replay_pause.pressed.connect(func(): replay_pause_toggled.emit())
+	head.add_child(_replay_pause)
+	_replay_speed = _button("×1")
+	_replay_speed.custom_minimum_size = Vector2(64, 30)
+	_replay_speed.pressed.connect(func(): replay_speed_cycled.emit())
+	head.add_child(_replay_speed)
+	_replay_report = _button("View report", true)
+	_replay_report.custom_minimum_size = Vector2(110, 30)
+	_replay_report.visible = false
+	_replay_report.pressed.connect(_show_deferred_result)
+	head.add_child(_replay_report)
+	var stop = _button("Close")
+	stop.custom_minimum_size = Vector2(72, 30)
+	stop.pressed.connect(func(): replay_stop_requested.emit())
+	head.add_child(stop)
+	_timeline = Timeline.new()
+	_timeline.custom_minimum_size = Vector2(0, 18)
+	v.add_child(_timeline)
+	_replay_caption = _label("", 14, TEXT.darkened(0.05))
+	_replay_caption.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	_replay_caption.custom_minimum_size = Vector2(800, 0)
+	v.add_child(_replay_caption)
+
+
+func _on_replay_pressed():
+	if _mission != null:
+		replay_requested.emit(_mission.get("id", ""))
+
+
+func begin_replay(title: String, duration_ms: float, markers: Array):
+	replay_active = true
+	if _deferred_result == null and _result_panel.visible and _mission != null:
+		_deferred_result = _mission  # bring the report back when the replay ends
+	_result_panel.visible = false
+	_replay_title.text = title
+	_replay_caption.text = "Replaying the mission…"
+	_replay_report.visible = _deferred_result != null
+	_replay_pause.text = "Pause"
+	var ms = []
+	for m in markers:
+		ms.append({"x": m["t"] / duration_ms, "color": ROLE_COLORS.get(m.get("agent_id", ""), ACCENT)})
+	_timeline.markers = ms
+	_timeline.progress = 0.0
+	_timeline.queue_redraw()
+	_replay_panel.visible = true
+
+
+func update_replay(clock_ms: float, duration_ms: float, speed: float, playing: bool):
+	_timeline.progress = clampf(clock_ms / duration_ms, 0.0, 1.0)
+	_timeline.queue_redraw()
+	_replay_time.text = "%s / %s" % [_fmt_ms(clock_ms), _fmt_ms(duration_ms)]
+	_replay_speed.text = "×%d" % int(round(speed)) if speed >= 1.0 else "×%.1f" % speed
+	_replay_pause.text = "Pause" if playing else "Play"
+
+
+func replay_caption(line: Dictionary):
+	var who = line.get("agentId")
+	_replay_caption.text = ("%s: " % who.capitalize() if who != null else "") + str(line.get("text", ""))
+	var color = TEXT
+	match line.get("level", "info"):
+		"warn":
+			color = Color(1.0, 0.8, 0.4)
+		"error":
+			color = Color(1.0, 0.5, 0.5)
+	_replay_caption.add_theme_color_override("font_color", color)
+
+
+# Called when the replay ends or is closed; shows the report if it was waiting.
+func end_replay():
+	replay_active = false
+	_replay_panel.visible = false
+	_show_deferred_result()
+
+
+# The report a finished mission produced waits behind its replay.
+func defer_next_result():
+	replay_active = true
+
+
+func cancel_deferred():
+	replay_active = false
+	_show_deferred_result()
+
+
+func _show_deferred_result():
+	if _deferred_result == null:
+		return
+	var m = _deferred_result
+	_deferred_result = null
+	_replay_report.visible = false
+	_result_panel.visible = m.get("status", "") != "cancelled"
+
+
+static func _fmt_ms(ms: float) -> String:
+	var s = int(ms / 1000.0)
+	return "%d:%02d" % [s / 60, s % 60]

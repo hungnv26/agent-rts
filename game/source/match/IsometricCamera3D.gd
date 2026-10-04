@@ -99,6 +99,12 @@ func _calculate_screen_move_vector() -> Vector2:
 			Input.get_axis("move_map_up", "move_map_down")
 		)
 
+	# Edge scrolling only while the window is focused and the cursor is inside it;
+	# otherwise a mouse parked on another screen edge drags the map away.
+	var inside = Rect2(Vector2.ZERO, Vector2(viewport_size)).has_point(mouse_pos)
+	if not inside or not DisplayServer.window_is_focused():
+		return move_vector
+
 	if mouse_pos.x <= screen_margin_for_movement:
 		move_vector.x = -1
 

@@ -68,3 +68,25 @@ test("cancel resets agents and marks mission cancelled", async () => {
   assert.equal(world.getMission()?.status, "cancelled");
   assert.ok(world.snapshot().agents.every((a) => a.state === "idle" && a.location === "command_centre"));
 });
+
+test("missions are recorded for replay, including the walk home", async () => {
+  const world = new World("fake");
+  const src = new FakeSource({ speed: 400, autoApproveMs: null, injectError: false });
+  await src.start(world);
+  await src.createMission("Replay me");
+  await until(() => world.snapshot().approvals.some((a) => a.status === "pending"));
+  await src.resolveApproval(world.snapshot().approvals[0].id, true);
+  await until(() => world.snapshot().agents.every((a) => a.state === "idle") && world.getMission()?.status === "completed");
+
+  const replay = world.replay()!;
+  assert.equal(replay.mission.title, "Replay me");
+  assert.equal(replay.mission.status, "completed");
+  assert.equal(replay.agents.length, 4);
+  const types = new Set(replay.events.map((e) => e.type));
+  for (const t of ["agent.state", "task.upsert", "mission.upsert", "approval.upsert", "log"]) assert.ok(types.has(t as never), t);
+  for (let i = 1; i < replay.events.length; i++) assert.ok(replay.events[i].ts >= replay.events[i - 1].ts);
+  const last = replay.events.filter((e) => e.type === "agent.state").at(-1)!;
+  assert.equal(last.type === "agent.state" && last.agent.state, "idle"); // the walk home is included
+  assert.equal(world.replay(replay.mission.id), replay);
+  assert.equal(world.replay("nope"), null);
+});

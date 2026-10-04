@@ -10,6 +10,8 @@ const BuildingScene = preload("res://source/agent/units/Building.tscn")
 const WorldClientScript = preload("res://source/agent/WorldClient.gd")
 const AgentHUDScript = preload("res://source/agent/hud/AgentHUD.gd")
 const WorldDecorScript = preload("res://source/agent/WorldDecor.gd")
+const TrainScript = preload("res://source/agent/Train.gd")
+const ReplayPlayerScript = preload("res://source/agent/replay/ReplayPlayer.gd")
 const Fx = preload("res://source/agent/Fx.gd")
 
 const CENTER = Vector3(16, 0, 16)
@@ -87,6 +89,11 @@ var _pending_approvals = {}
 var _mission_id = ""
 var ui_scale = 1.0
 var mission_running = false
+var _mission_status = ""
+var _train = null
+var _replay = null
+var _replaying = false
+var _replay_wait_id = ""
 
 
 func _ready():
@@ -127,6 +134,12 @@ func _ready():
 	add_child(_decor)
 	_decor.build(map.find_child("Terrain").mesh.material)
 	_decor.apply_glow($WorldEnvironment, $DirectionalLight3D)
+	_train = TrainScript.new()
+	_train.ui_scale = ui_scale
+	add_child(_train)
+	_train.build()
+	_replay = ReplayPlayerScript.new()
+	add_child(_replay)
 	_hud = AgentHUDScript.new()
 	$HUD.add_child(_hud)
 	_client = WorldClientScript.new()
@@ -139,6 +152,15 @@ func _ready():
 		func(id, approved): _client.send_command({"type": "approval.resolve", "id": id, "approved": approved})
 	)
 	_hud.agent_focus_requested.connect(_focus_agent)
+	_hud.replay_requested.connect(_request_replay)
+	_hud.replay_pause_toggled.connect(func(): _replay.toggle_pause())
+	_hud.replay_speed_cycled.connect(func(): _replay.cycle_speed())
+	_hud.replay_stop_requested.connect(_end_replay)
+	_replay.caption.connect(func(line): _hud.replay_caption(line))
+	_replay.progressed.connect(
+		func(clock, total): _hud.update_replay(clock, total, _replay.effective_speed(), _replay.playing)
+	)
+	_replay.finished.connect(_end_replay)
 	_hud.set_connection(false)
 	MatchSignals.unit_selected.connect(_on_unit_selected)
 	get_viewport().size_changed.connect(_apply_ui_scale)
@@ -147,16 +169,20 @@ func _ready():
 
 
 func _process(delta):
+	# During a replay the ghosts drive the world's reactions instead of the real agents.
+	var actors = _replay.ghosts.values() if _replaying else _agents.values()
 	# Buildings glow while an agent is working inside.
 	for b in _buildings.values():
-		for agent in _agents.values():
+		for agent in actors:
 			b.set_occupant(
 				agent.agent_id,
 				agent.state == "working" and agent.location == b.building_id and not agent.is_moving()
 			)
-	_buildings["human_approval"].alert = not _pending_approvals.is_empty()
+	_buildings["human_approval"].alert = _replay.approval_pending if _replaying else not _pending_approvals.is_empty()
 	if _decor != null:
-		_decor.update_world(_agents.values(), delta)
+		_decor.update_world(actors, delta)
+	if _train != null:
+		_train.mission_running = mission_running or _replaying
 
 
 # HUD and labels are designed for a 1080p-tall window; scale them up on 4K/5K screens.
@@ -226,8 +252,21 @@ func _on_message(msg):
 		"task.upsert":
 			_hud.set_task(msg["task"])
 		"mission.upsert":
-			_hud.set_mission(msg["mission"])
-			_on_mission_fx(msg["mission"])
+			var m = msg["mission"]
+			var status = m.get("status", "")
+			var finished_now = status in ["completed", "failed"] and (
+				status != _mission_status or m.get("id", "") != _mission_id
+			)
+			if finished_now:
+				# Play a replay of the mission first; the report opens after it.
+				_hud.defer_next_result()
+				_replay_wait_id = m.get("id", "")
+				get_tree().create_timer(2.5).timeout.connect(_request_replay.bind(_replay_wait_id))
+			_hud.set_mission(m)
+			_on_mission_fx(m)
+			_mission_status = status
+		"replay":
+			_on_replay(msg.get("replay"))
 		"approval.upsert":
 			_hud.set_approval(msg["approval"])
 			var ap = msg["approval"]
@@ -251,6 +290,8 @@ func _on_mission_fx(m):
 	_mission_id = m.get("id", "")
 	if is_new:
 		_pending_approvals.clear()
+		if _replaying and (status == "planning" or status == "running"):
+			_end_replay()
 	mission_running = status == "planning" or status == "running"
 	if is_new and mission_running:
 		cc.set_pulse_color(Color(0.4, 0.8, 1.0))
@@ -261,6 +302,52 @@ func _on_mission_fx(m):
 		_decor.burst(Color(0.45, 1.0, 0.6))
 	elif status == "failed":
 		cc.set_pulse_color(Color(1.0, 0.35, 0.3))
+		cc.pulse()
+
+
+func _request_replay(mission_id):
+	if mission_running or _replaying:
+		_hud.cancel_deferred()
+		return
+	_replay_wait_id = mission_id
+	_client.send_command({"type": "replay.request", "missionId": mission_id})
+	# If the adapter has nothing (or is gone), don't keep the report waiting.
+	get_tree().create_timer(3.0).timeout.connect(
+		func():
+			if _replay_wait_id == mission_id and not _replaying:
+				_replay_wait_id = ""
+				_hud.cancel_deferred()
+	)
+
+
+func _on_replay(replay):
+	var wanted = _replay_wait_id
+	_replay_wait_id = ""
+	if replay == null or replay.get("events", []).is_empty() or mission_running or _replaying:
+		_hud.cancel_deferred()
+		return
+	if wanted != "" and replay.get("mission", {}).get("id", "") != wanted:
+		_hud.cancel_deferred()
+		return
+	_replaying = true
+	for agent in _agents.values():
+		agent.set_hidden(true)
+	_replay.start(replay, ROSTER, self, _target_for, ui_scale)
+	_hud.begin_replay(replay["mission"].get("title", ""), _replay.duration_ms, _replay.markers)
+
+
+func _end_replay():
+	if not _replaying:
+		return
+	var completed = _replay.mission.get("status", "") == "completed"
+	_replay.stop()
+	_replaying = false
+	for agent in _agents.values():
+		agent.set_hidden(false)
+	_hud.end_replay()
+	if completed:
+		var cc = _buildings["command_centre"]
+		cc.set_pulse_color(Color(0.4, 1.0, 0.55))
 		cc.pulse()
 
 

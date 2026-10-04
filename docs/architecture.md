@@ -36,7 +36,10 @@ On connect the server sends a `snapshot`, then events, each with an increasing `
 | `resource.update` | Tokens (estimated), cost in USD, and the cost budget |
 | `log` | A line for the in-game feed |
 
-Commands from the game: `mission.create {title}`, `approval.resolve {id, approved}`, `mission.cancel`.
+| `replay` | Reply to `replay.request`: a recorded mission (start states plus every timestamped event until shortly after it ended). Only sent to the client that asked. |
+
+Commands from the game: `mission.create {title}`, `approval.resolve {id, approved}`, `mission.cancel`,
+`replay.request {missionId?}`. The adapter keeps the last 5 missions; `GET /replay?missionId=` also serves them.
 The same commands can be sent as `POST /command` (see `scripts/run-mission.sh`); `GET /state`
 returns the snapshot.
 
@@ -74,3 +77,12 @@ feed.
 | Human Approval | Task in `review`. Approving it in Mission Control (quality review → approve) approves it in the game, and the reverse also works. |
 | Tokens and cost | `POST /api/tokens` at the end of a mission, under session `rts-commander:<mission>` |
 | Mission events | Activity feed (`mission:start`, `approval:requested`, `mission:complete`, …) |
+
+## Mission replay
+
+When a mission completes or fails, the game asks the adapter for its recording and plays
+it back as a 12–20 s highlight reel. Holographic ghost agents re-walk the mission, and
+buildings, conduits and beams react as they did live. The timeline shows a marker per step
+in the agent's colour, and log lines appear as captions. Pause, speed (×0.5–×4) and Close
+are available; the report opens when the replay ends (or straight away with **View
+report**). **▶ Replay** in the report panel plays it again.

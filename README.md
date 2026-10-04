@@ -32,7 +32,10 @@ scripts/start.sh      # Hermes + Mission Control + adapter, then opens the game
 
 Type a mission into the command bar (e.g. *Research the Australian EV market*) and press
 **Deploy**. When the Reviewer walks to Human Approval, click **Approve** (or click the Human
-Approval building). The report opens when the mission ends.
+Approval building). When the mission ends, a short replay plays (holographic agents re-run
+the mission at high speed) and then the report opens. Click **View report** to skip
+ahead, or **▶ Replay** in the report to watch it again. A monorail train laps the base and
+speeds up while a mission is running.
 
 - **Mission Control:** http://127.0.0.1:3000. The login is in `.env` (`MC_ADMIN_USER` / `MC_ADMIN_PASS`).
   Pending approvals appear as tasks in *review*; approving one there approves it in the game.
@@ -53,9 +56,9 @@ natively), pnpm, Godot 4.4+ (`brew install --cask godot`) and Ollama.
 | Approve | The dialog, or click the Human Approval building |
 | Abort a mission | **Abort** next to Deploy |
 
-| Agents at work (live Hermes run) | Mission complete, with a sourced report |
-|---|---|
-| ![](docs/screenshots/agents-working.png) | ![](docs/screenshots/mission-complete.png) |
+| Agents at work | Mission replay (ghost agents + timeline) | Mission complete, with a sourced report |
+|---|---|---|
+| ![](docs/screenshots/agents-working.png) | ![](docs/screenshots/mission-replay.png) | ![](docs/screenshots/mission-complete.png) |
 
 ## Models
 

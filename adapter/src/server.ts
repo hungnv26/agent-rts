@@ -28,6 +28,8 @@ export function parseCommand(raw: string): ClientCommand | null {
         : null;
     case "mission.cancel":
       return { type: "mission.cancel" };
+    case "replay.request":
+      return typeof c.missionId === "string" ? { type: "replay.request", missionId: c.missionId } : { type: "replay.request" };
     default:
       return null;
   }
@@ -48,6 +50,8 @@ export function startServer(world: World, source: Source, port: number, host = "
         return source.resolveApproval(cmd.id, cmd.approved);
       case "mission.cancel":
         return source.cancelMission();
+      case "replay.request":
+        return; // answered per client (WebSocket) or via GET /replay
     }
   };
 
@@ -58,6 +62,11 @@ export function startServer(world: World, source: Source, port: number, host = "
     };
     if (req.method === "GET" && req.url === "/health") return json(200, { ok: true, source: source.name, clients: clients.size });
     if (req.method === "GET" && req.url === "/state") return json(200, { seq: world.currentSeq, world: world.snapshot() });
+    if (req.method === "GET" && req.url?.startsWith("/replay")) {
+      const missionId = new URL(req.url, "http://x").searchParams.get("missionId") ?? undefined;
+      const replay = world.replay(missionId);
+      return replay ? json(200, replay) : json(404, { error: "no recorded mission" });
+    }
     if (req.method === "POST" && req.url === "/command") {
       let body = "";
       for await (const chunk of req) body += chunk;
@@ -81,6 +90,11 @@ export function startServer(world: World, source: Source, port: number, host = "
       const cmd = parseCommand(data.toString());
       if (!cmd) {
         ws.send(JSON.stringify({ type: "error", seq: world.currentSeq, message: "invalid command" } satisfies ServerMessage));
+        return;
+      }
+      if (cmd.type === "replay.request") {
+        const msg: ServerMessage = { type: "replay", seq: world.currentSeq, replay: world.replay(cmd.missionId) };
+        ws.send(JSON.stringify(msg));
         return;
       }
       handle(cmd).catch((e) => world.logLine(`Command ${cmd.type} failed: ${e}`, "error"));

@@ -9,6 +9,8 @@ import {
   type LocationId,
   type LogLine,
   type Mission,
+  type RecordedEvent,
+  type Replay,
   type Resources,
   type ServerEvent,
   type ServerMessage,
@@ -31,6 +33,9 @@ export const HOME_BUILDING: Record<AgentRole, BuildingId> = {
 };
 
 const LOG_LIMIT = 200;
+const REPLAY_KEEP = 5; // missions kept for replay
+const REPLAY_TAIL_MS = 6000; // keep recording this long after a mission ends (agents walk home)
+const RECORDED = new Set(["agent.state", "task.upsert", "mission.upsert", "approval.upsert", "log", "resource.update"]);
 
 // Where an agent stands for a given state. `building` only matters while working.
 export function locationFor(state: AgentState, role: AgentRole, building?: BuildingId | null, current?: LocationId): LocationId {
@@ -70,6 +75,7 @@ export class World extends EventEmitter {
   private mission: Mission | null = null;
   private resources: Resources = { tokensUsed: 0, tokenBudget: null, costUsd: 0, costBudgetUsd: null };
   private log: LogLine[] = [];
+  private recordings = new Map<string, Replay>();
   source: string;
   missionControlUrl: string | null = null;
   readonly now: () => number;
@@ -128,7 +134,26 @@ export class World extends EventEmitter {
 
   private emitEvent(event: ServerEvent): void {
     const msg = { ...event, seq: ++this.seq } as ServerMessage;
+    this.record(event);
     this.emit("message", msg);
+  }
+
+  private record(event: ServerEvent) {
+    const m = this.mission;
+    if (!m || !RECORDED.has(event.type)) return;
+    if (m.endedAt !== null && this.now() - m.endedAt > REPLAY_TAIL_MS) return;
+    const rec = this.recordings.get(m.id);
+    if (!rec) return;
+    rec.events.push({ ...structuredClone(event), ts: this.now() } as RecordedEvent);
+    if (event.type === "mission.upsert") rec.mission = structuredClone(event.mission);
+  }
+
+  // The recorded event stream of a mission (the latest one by default).
+  replay(missionId?: string): Replay | null {
+    if (missionId) return this.recordings.get(missionId) ?? null;
+    let last: Replay | null = null;
+    for (const r of this.recordings.values()) last = r;
+    return last;
   }
 
   setAgent(id: string, u: AgentUpdate): Agent {
@@ -178,6 +203,8 @@ export class World extends EventEmitter {
     this.tasks.clear();
     this.approvals.clear();
     this.mission = { id, title, status: "planning", result: null, startedAt: this.now(), endedAt: null };
+    this.recordings.set(id, { mission: structuredClone(this.mission), agents: structuredClone([...this.agents.values()]), events: [] });
+    while (this.recordings.size > REPLAY_KEEP) this.recordings.delete(this.recordings.keys().next().value!);
     this.emitEvent({ type: "mission.upsert", mission: this.mission });
     this.setResources({ tokensUsed: 0, costUsd: 0 });
     return this.mission;

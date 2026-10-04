@@ -99,6 +99,16 @@ export interface WorldSnapshot {
   links: { missionControl: string | null };
 }
 
+// A recorded mission: every world event between mission start and a few seconds after it
+// ended, with the time it happened. Used by the game's mission replay.
+export type RecordedEvent = Exclude<ServerEvent, { type: "snapshot" } | { type: "replay" } | { type: "error" }> & { ts: number };
+
+export interface Replay {
+  mission: Mission;
+  agents: Agent[]; // agent states when the mission started
+  events: RecordedEvent[];
+}
+
 // ---- server -> client ----
 export type ServerEvent =
   | { type: "snapshot"; world: WorldSnapshot }
@@ -108,6 +118,7 @@ export type ServerEvent =
   | { type: "approval.upsert"; approval: Approval }
   | { type: "resource.update"; resources: Resources }
   | { type: "log"; line: LogLine }
+  | { type: "replay"; replay: Replay | null }
   | { type: "error"; message: string };
 
 export type ServerMessage = ServerEvent & { seq: number };
@@ -117,4 +128,5 @@ export type ClientCommand =
   | { type: "hello"; client: string }
   | { type: "mission.create"; title: string }
   | { type: "approval.resolve"; id: string; approved: boolean }
-  | { type: "mission.cancel" };
+  | { type: "mission.cancel" }
+  | { type: "replay.request"; missionId?: string };

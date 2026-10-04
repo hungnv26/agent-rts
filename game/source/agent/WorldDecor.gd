@@ -323,7 +323,8 @@ func _build_props():
 		glow.position = Vector3(0, 0.8, 0)
 		crystal.add_child(glow)
 	# Base furniture: corner turrets, cargo and machines along the inner edge.
-	for c in [Vector3(1.6, 0, 1.6), Vector3(30.4, 0, 1.6), Vector3(1.6, 0, 30.4), Vector3(30.4, 0, 30.4)]:
+	# (Just outside the perimeter: the monorail runs along the inner edge.)
+	for c in [Vector3(-1.8, 0, -1.8), Vector3(33.8, 0, -1.8), Vector3(-1.8, 0, 33.8), Vector3(33.8, 0, 33.8)]:
 		_prop(K + "turret_double.glb", c, 1.4, (center - c).angle_to(Vector3.FORWARD))
 	var furniture = ["barrels", "barrel", "machine_barrel", "machine_generator", "machine_wireless", "satelliteDish"]
 	placed = 0
@@ -332,9 +333,9 @@ func _build_props():
 		tries += 1
 		var edge = _rng.randi() % 4
 		var t = _rng.randf_range(3, 29)
-		var inset = _rng.randf_range(0.8, 2.6)
+		var inset = -_rng.randf_range(0.9, 2.8)
 		var p = [Vector3(t, 0, inset), Vector3(t, 0, 32 - inset), Vector3(inset, 0, t), Vector3(32 - inset, 0, t)][edge]
-		if not _clear_of_layout(p, 0.8):
+		if p.distance_to(Vector3(-5.0, 0, 8.0)) < 4.0 or p.distance_to(Vector3(-5.0, 0, 17.5)) < 3.8:
 			continue
 		_prop(K + furniture[_rng.randi() % furniture.size()] + ".glb", p, _rng.randf_range(0.8, 1.4), _rng.randf() * TAU)
 		placed += 1

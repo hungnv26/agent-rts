@@ -44,6 +44,7 @@ var _thinking_ring: MeshInstance3D
 var _geometry: Node3D
 var _geometry_base_y = 0.0
 var _ring_mat: StandardMaterial3D
+var _hidden = false
 
 
 func _ready():
@@ -78,6 +79,17 @@ func snap_to(agent_dict):
 
 func is_moving():
 	return _moving
+
+
+# Hide the agent's visuals (used while a replay's ghosts are on stage). The unit node
+# itself can't be hidden: Open RTS's visibility handler re-shows units every frame.
+func set_hidden(hidden: bool):
+	_hidden = hidden
+	for child in get_children():
+		if child is Node3D:
+			child.visible = not hidden
+	if not hidden and _thinking_ring != null:
+		_thinking_ring.visible = state == "thinking"
 
 
 func _process(delta):
@@ -144,7 +156,7 @@ func _animate(delta, now):
 	elif state == "error":
 		ring_alpha = 0.4 + 0.4 * abs(sin(now * 5.0))
 	_ring_mat.albedo_color = Color(Color(1.0, 0.3, 0.3) if state == "error" else role_color, ring_alpha)
-	_thinking_ring.visible = state == "thinking"
+	_thinking_ring.visible = state == "thinking" and not _hidden
 	if _thinking_ring.visible:
 		_thinking_ring.rotation.y = now * 3.0
 	if state == "error" or state == "approval":
