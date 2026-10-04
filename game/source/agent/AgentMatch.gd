@@ -350,14 +350,49 @@ func _target_for(location, agent_id):
 	var b = _bdef(location)
 	if b == null:
 		return center
+	# At its home a character takes a slot among the characters sharing that home, so a
+	# crowded home stays compact; elsewhere slots follow roster order.
+	var mine = roster[idx] if idx < roster.size() else {}
+	if mine.get("home", "command_centre") == location:
+		var sharing = roster.filter(func(d): return d.get("home", "command_centre") == location)
+		n = sharing.size()
+		idx = max(0, sharing.find(mine))
 	var pos = Vector3(b["x"], 0, b["z"])
-	if location == "command_centre":
-		var angle = PI * 0.5 + TAU * idx / n
-		return pos + Vector3(cos(angle), 0, sin(angle)) * (3.6 + 0.08 * n)
-	var dir = (center - pos).normalized()
-	var door = pos + dir * 3.3
-	var perp = Vector3(-dir.z, 0, dir.x)
-	return door + perp * (idx - (n - 1) * 0.5) * clampf(6.0 / n, 0.5, 0.85)
+	var base_r = 3.6 if location == "command_centre" else 3.3
+	return _arc_slot(pos, (center - pos).normalized(), idx, n, base_r)
+
+
+# Slot `i` on rows of arcs around a building, filling the side facing the map centre first;
+# each further row is one unit out. Slots inside other buildings or off the map are skipped.
+func _arc_slot(pos: Vector3, facing: Vector3, i: int, n: int, base_r: float) -> Vector3:
+	const GAP = 1.05
+	var size = float(_layout.get("size", 32))
+	var others = []
+	for b in _layout.get("buildings", []):
+		var bp = Vector3(b["x"], 0, b["z"])
+		if bp.distance_to(pos) > 0.1:
+			others.append(bp)
+	var r = base_r
+	var free = 0
+	var placed = 0
+	for ring in 12:
+		var cap = int(TAU * r / GAP)
+		var m = min(cap, max(1, n - placed))
+		# Grow the arc symmetrically from the front: 0, +1, -1, +2, -2 ...
+		for k in cap:
+			var j = (k + 1) / 2 * (1 if k % 2 == 1 else -1)
+			var a = atan2(facing.z, facing.x) + j * (GAP / r)
+			var p = pos + Vector3(cos(a), 0, sin(a)) * r
+			if p.x < 1.0 or p.z < 1.0 or p.x > size - 1.0 or p.z > size - 1.0:
+				continue
+			if others.any(func(o): return o.distance_to(p) < 2.4):
+				continue
+			if free == i:
+				return p
+			free += 1
+		placed += m
+		r += 1.0
+	return pos
 
 
 # ---------------------------------------------------------------- Build mode placement

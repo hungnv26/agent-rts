@@ -175,6 +175,7 @@ function coord(v: unknown, size: number): number {
 export class LayoutError extends Error {}
 
 export const MAX_BUILDINGS = 32;
+export const MAX_CUSTOM_AGENTS = 24; // on top of the 7 built-in characters
 const BUILDING_SPACING = 4.5; // centre to centre; footprints are ~3.6
 
 function uniqueId(base: string, taken: Set<string>): string {
@@ -258,7 +259,7 @@ export function upsertAgent(l: BaseLayout, input: Record<string, unknown>): Agen
   }
   const job = text(input.job, 600);
   if (job.length < 10) throw new LayoutError("Describe the character's job (at least a sentence).");
-  if (l.agents.filter((a) => !a.builtin).length >= 8) throw new LayoutError("At most 8 custom characters.");
+  if (l.agents.filter((a) => !a.builtin).length >= MAX_CUSTOM_AGENTS) throw new LayoutError(`At most ${MAX_CUSTOM_AGENTS} custom characters.`);
   const id = uniqueId(slug(name), new Set(l.agents.map((a) => a.id)));
   const skill = CUSTOM_SKILLS.includes(input.skill as Skill) ? (input.skill as Skill) : "reasoning";
   const a: AgentDef = { id, name, hermesId: `rts_${id}`.slice(0, 32), job, skill, model, color, home };

@@ -42,6 +42,7 @@ var _cost_label: Label
 var _conn_label: Label
 var _mc_button: Button
 var _roster: VBoxContainer
+var _roster_scroll: ScrollContainer
 var _cards = {}
 var _input: LineEdit
 var _deploy: Button
@@ -364,9 +365,13 @@ func _build_roster():
 	p.offset_right = -16
 	p.offset_top = 92
 	add_child(p)
+	# Scrolls once the cards no longer fit above the command bar (_fit_roster).
+	_roster_scroll = ScrollContainer.new()
+	_roster_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	p.add_child(_roster_scroll)
 	_roster = VBoxContainer.new()
 	_roster.add_theme_constant_override("separation", 8)
-	p.add_child(_roster)
+	_roster_scroll.add_child(_roster)
 	_roster.add_child(_label("AGENTS", 13, MUTED))
 
 
@@ -405,6 +410,19 @@ func _make_card(a):
 	card.mouse_default_cursor_shape = CURSOR_POINTING_HAND
 	_roster.add_child(card)
 	return {"panel": card, "state": state, "task": task, "detail": detail, "swatch": swatch, "name": name_l}
+
+
+func _fit_roster():
+	var content = _roster.get_combined_minimum_size()
+	var room = max(160.0, size.y - 92 - 130)  # below the top bar, above the command bar
+	var bar = 14.0 if content.y > room else 0.0
+	var want = Vector2(content.x + bar, min(content.y, room))
+	if _roster_scroll.custom_minimum_size != want:
+		_roster_scroll.custom_minimum_size = want
+		var panel = _roster_scroll.get_parent()
+		var m = panel.get_combined_minimum_size()
+		panel.offset_left = panel.offset_right - max(314.0, m.x)  # stays pinned to the right edge
+		panel.offset_bottom = panel.offset_top + m.y
 
 
 func _build_command_bar():
@@ -991,5 +1009,6 @@ func show_error(text: String):
 
 
 func _process(_delta):
+	_fit_roster()
 	if _toast_panel != null and _toast_panel.visible and Time.get_ticks_msec() / 1000.0 > _toast_until:
 		_toast_panel.visible = false

@@ -7,7 +7,7 @@ import { join } from "node:path";
 import { test } from "node:test";
 import { Base } from "../src/base.ts";
 import type { ServerMessage } from "../src/contract.ts";
-import { buildingForTool, cloneLayout, DEFAULT_LAYOUT, LayoutError, loadLayout, upsertBuilding } from "../src/layout.ts";
+import { buildingForTool, cloneLayout, DEFAULT_LAYOUT, LayoutError, loadLayout, upsertAgent, upsertBuilding } from "../src/layout.ts";
 import { FakeSource } from "../src/sources/fake.ts";
 import { HermesSource } from "../src/sources/hermes.ts";
 import { World } from "../src/world.ts";
@@ -144,4 +144,11 @@ test("the base holds up to 32 buildings, 4.5 apart", () => {
   }
   assert.equal(l.buildings.length, 32);
   assert.throws(() => upsertBuilding(l, { label: "One more", x: 5, z: 5 }), /at most 32/);
+});
+
+test("up to 24 custom characters on top of the built-ins", () => {
+  const l = cloneLayout(DEFAULT_LAYOUT);
+  for (let i = 0; i < 24; i++) upsertAgent(l, { name: `Helper ${i}`, job: "Helps the team with one small task." });
+  assert.equal(l.agents.filter((a) => !a.builtin).length, 24);
+  assert.throws(() => upsertAgent(l, { name: "One more", job: "Helps the team with one small task." }), /At most 24/);
 });
