@@ -4,7 +4,8 @@ extends RefCounted
 #   window: windowed/fullscreen and window size in real pixels (up to 3840x2160 / 4K)
 #   render_scale: 3D render resolution (0.5..1.0), UI and labels always stay sharp
 #   msaa: 3D anti-aliasing (0 off, 1 = 2x, 2 = 4x)
-#   text_size: HUD/label size; 1.0 = default (TEXT_BASE of the automatic size)
+#   text_size: menu/HUD text size; 1.0 = TEXT_BASE of the automatic size
+#   label_size: size of the names/status above characters and buildings on the map
 #   zoom: map zoom (camera size; smaller = closer)
 
 const PATH = "user://agent_rts_settings.cfg"
@@ -14,6 +15,8 @@ const WINDOW_SIZES = [
 const RENDER_SCALES = [0.5, 0.67, 0.75, 1.0]
 const TEXT_SIZES = [0.8, 0.9, 1.0, 1.2]
 const TEXT_DEFAULT = 0.8
+const LABEL_SIZES = [0.4, 0.5, 0.6, 0.7, 0.8, 1.0]
+const LABEL_DEFAULT = 0.6
 # Text size scale. 100% is two steps below the earlier "Small" (0.8 x 0.85 x 0.85 of the
 # original layout); the default is 80%, two steps smaller again.
 const TEXT_BASE = 0.58
@@ -26,6 +29,7 @@ var window_size = Vector2i(1920, 1080)
 var render_scale = 1.0
 var msaa = 1
 var text_size = TEXT_DEFAULT
+var label_size = LABEL_DEFAULT
 var zoom = ZOOM_DEFAULT
 var has_saved_window = false
 var path = PATH  # overridable with --settings-file=... (used by automated captures)
@@ -47,6 +51,7 @@ func load_settings():
 	render_scale = cfg.get_value("display", "render_scale", render_scale)
 	msaa = cfg.get_value("display", "msaa", msaa)
 	text_size = clampf(cfg.get_value("display", "text_size", text_size), TEXT_SIZES[0], TEXT_SIZES[-1])
+	label_size = clampf(cfg.get_value("display", "label_size", label_size), LABEL_SIZES[0], LABEL_SIZES[-1])
 	zoom = cfg.get_value("map", "zoom", zoom)
 	# Files saved by the first settings version stored the window in screen points and the
 	# text as "ui_size" (relative to the original layout). Convert once.
@@ -71,6 +76,7 @@ func save_settings():
 	cfg.set_value("display", "render_scale", render_scale)
 	cfg.set_value("display", "msaa", msaa)
 	cfg.set_value("display", "text_size", text_size)
+	cfg.set_value("display", "label_size", label_size)
 	cfg.set_value("map", "zoom", zoom)
 	cfg.save(path)
 

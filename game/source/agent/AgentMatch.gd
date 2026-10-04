@@ -91,7 +91,8 @@ var _first_snapshot = true
 var _decor = null
 var _pending_approvals = {}
 var _mission_id = ""
-var ui_scale = 1.0
+var ui_scale = 1.0  # menus / HUD
+var label_scale = 1.0  # names and status above characters and buildings
 var mission_running = false
 var display_settings = SettingsScript.new()
 var _zoom_saved_at = 0.0
@@ -106,6 +107,7 @@ func _ready():
 	if display_settings.has_saved_window:
 		display_settings.apply_window()
 	ui_scale = _compute_ui_scale()
+	label_scale = _compute_label_scale()
 	for path in RTS_ONLY_NODES:
 		var node = get_node_or_null(path)
 		if node != null:
@@ -136,7 +138,7 @@ func _ready():
 	super()
 	_decor = WorldDecorScript.new()
 	_decor.center = CENTER
-	_decor.ui_scale = ui_scale
+	_decor.ui_scale = label_scale
 	for b in BUILDINGS:
 		_decor.buildings[b["id"]] = {"pos": b["pos"], "accent": b["accent"], "size": b["size"]}
 	for id in SPOTS:
@@ -203,10 +205,16 @@ func _process(delta):
 
 
 # HUD and labels are designed for a 1080p-tall window; scale them up on 4K/5K screens.
+func _window_factor():
+	return clampf(get_viewport().get_visible_rect().size.y / 1080.0, 1.0, 3.0)
+
+
 func _compute_ui_scale():
-	var h = get_viewport().get_visible_rect().size.y
-	var base = clampf(h / 1080.0, 1.0, 3.0) * SettingsScript.TEXT_BASE * display_settings.text_size
-	return max(0.45, base)
+	return max(0.45, _window_factor() * SettingsScript.TEXT_BASE * display_settings.text_size)
+
+
+func _compute_label_scale():
+	return max(0.25, _window_factor() * SettingsScript.TEXT_BASE * display_settings.label_size)
 
 
 func _on_setting_changed(key, value):
@@ -227,6 +235,9 @@ func _on_setting_changed(key, value):
 		"text_size":
 			display_settings.text_size = value
 			_apply_ui_scale()
+		"label_size":
+			display_settings.label_size = value
+			_apply_ui_scale()
 		"zoom":
 			display_settings.zoom = display_settings.clamp_zoom(value)
 			_camera.set_size_safely(display_settings.zoom)
@@ -236,6 +247,7 @@ func _on_setting_changed(key, value):
 
 func _apply_ui_scale():
 	ui_scale = _compute_ui_scale()
+	label_scale = _compute_label_scale()
 	if _hud != null:
 		_hud.set_ui_scale(ui_scale)
 	var minimap = get_node_or_null("HUD/MarginContainer")
@@ -243,7 +255,7 @@ func _apply_ui_scale():
 		minimap.pivot_offset = Vector2(0, minimap.size.y)
 		minimap.scale = Vector2(ui_scale, ui_scale)
 	for l in get_tree().get_nodes_in_group(Fx.LABEL_GROUP):
-		l.pixel_size = l.get_meta("base_px", 0.0008) * ui_scale
+		l.pixel_size = l.get_meta("base_px", 0.0008) * label_scale
 
 
 # Where an agent stands at a location. Each agent has a fixed slot so they never stack.
@@ -365,7 +377,7 @@ func _on_replay(replay):
 	_replaying = true
 	for agent in _agents.values():
 		agent.set_hidden(true)
-	_replay.start(replay, ROSTER, self, _target_for, ui_scale)
+	_replay.start(replay, ROSTER, self, _target_for, label_scale)
 	_hud.begin_replay(replay["mission"].get("title", ""), _replay.duration_ms, _replay.markers)
 
 

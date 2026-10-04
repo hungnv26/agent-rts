@@ -46,6 +46,8 @@ var _thinking_ring: MeshInstance3D
 var _geometry: Node3D
 var _geometry_base_y = 0.0
 var _hidden = false
+var _label_y = 1.35
+var _label_back = 0.8  # labels sit screen-up (north) of the vehicle, clear of its body
 
 
 func _ready():
@@ -54,15 +56,18 @@ func _ready():
 		for child in geometry.get_children():
 			geometry.remove_child(child)
 			child.queue_free()
-		geometry.add_child(Fx.fitted(model_path, model_size))
+		var vehicle = Fx.fitted(model_path, model_size)
+		geometry.add_child(vehicle)
+		_label_y = vehicle.get_meta("height", 1.0) + 0.35  # just above the roof
+		_label_back = model_size * 0.5 + 0.25
 	await super()
 	_geometry = find_child("Geometry")
 	_geometry_base_y = _geometry.position.y
-	_name_label = _make_label(26, Vector3(0, 1.35, 0))
+	_name_label = _make_label(26, Vector3(0, _label_y, 0))
 	_name_label.offset = Vector2(0, 40)
 	_name_label.text = display_name
 	_name_label.modulate = role_color.lightened(0.25)
-	_badge = _make_label(20, Vector3(0, 1.35, 0))
+	_badge = _make_label(20, Vector3(0, _label_y, 0))
 	_thinking_ring = _make_thinking_ring()
 	_render_badge()
 
@@ -117,6 +122,7 @@ func _process(delta):
 			_move_started_at = now
 
 	_animate(delta, now)
+	_place_labels()
 
 
 func _apply(agent_dict, walk):
@@ -170,10 +176,19 @@ func _render_badge_moving_prefix():
 
 
 func _make_label(font_size, pos):
-	var ui_scale = _match.ui_scale if "ui_scale" in _match else 1.0
-	var l = Fx.label(self, "", font_size, Color.WHITE, ui_scale, 0.0008)
+	var label_scale = _match.label_scale if "label_scale" in _match else 1.0
+	var l = Fx.label(self, "", font_size, Color.WHITE, label_scale, 0.0008)
+	l.top_level = true  # don't turn with the vehicle; positioned in _place_labels
 	l.position = pos
 	return l
+
+
+func _place_labels():
+	var p = global_position + Vector3(0, _label_y, -_label_back)
+	if _name_label != null:
+		_name_label.global_position = p
+	if _badge != null:
+		_badge.global_position = p
 
 
 func _make_thinking_ring():
@@ -186,7 +201,7 @@ func _make_thinking_ring():
 	mat.albedo_color = Color(0.95, 0.95, 0.98)
 	mat.roughness = 0.8
 	ring.material_override = mat
-	ring.position = Vector3(0, 1.1, 0)
+	ring.position = Vector3(0, _label_y - 0.15, 0)
 	ring.visible = false
 	add_child(ring)
 	return ring

@@ -29,7 +29,7 @@ func _ready():
 		_pivot = Fx.fitted(model_path, model_size)
 		find_child("Geometry").add_child(_pivot)
 	await super()
-	var ui_scale = _match.ui_scale if "ui_scale" in _match else 1.0
+	var ui_scale = _match.label_scale if "label_scale" in _match else 1.0
 	var top = max(2.4, (_pivot.get_meta("height", 2.0) if _pivot else 2.0) + 0.7)
 	_label3d = Fx.label(self, label, 26, Color(1.0, 0.97, 0.92), ui_scale)
 	_label3d.position = Vector3(0, top, 0)

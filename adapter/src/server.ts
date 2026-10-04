@@ -42,7 +42,6 @@ export function startServer(world: World, source: Source, port: number, host = "
   const handle = async (cmd: ClientCommand): Promise<void> => {
     switch (cmd.type) {
       case "hello":
-        world.logLine(`Client connected: ${cmd.client}`);
         return;
       case "mission.create":
         return source.createMission(cmd.title);

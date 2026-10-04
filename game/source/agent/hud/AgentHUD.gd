@@ -800,7 +800,11 @@ func _build_settings():
 	var texts = []
 	for t in Settings.TEXT_SIZES:
 		texts.append(["%d%%" % int(round(t * 100.0)), t])
-	_chip_row(v, "Text size", "text_size", texts)
+	_chip_row(v, "Menu text", "text_size", texts)
+	var labels = []
+	for t in Settings.LABEL_SIZES:
+		labels.append(["%d%%" % int(round(t * 100.0)), t])
+	_chip_row(v, "Map labels", "label_size", labels)
 	var zoom_row = HBoxContainer.new()
 	zoom_row.add_theme_constant_override("separation", 10)
 	var zl = _label("Map zoom", 15)
@@ -860,6 +864,7 @@ func show_settings(settings, camera_size: float):
 		"render_scale": settings.render_scale,
 		"msaa": settings.msaa,
 		"text_size": settings.text_size,
+		"label_size": settings.label_size,
 	}
 	for key in _chip_groups:
 		for chip in _chip_groups[key]:
