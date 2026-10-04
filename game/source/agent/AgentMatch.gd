@@ -6,6 +6,7 @@ extends "res://source/match/Match.gd"
 # player's layout, owned by the adapter and edited in Build mode; this scene reconciles the
 # map with it whenever it changes.
 
+const BaseDressingScript = preload("res://source/agent/BaseDressing.gd")
 const Models = preload("res://source/agent/Models.gd")
 const CHARACTER_HEIGHT = 1.7  # animated characters are fitted by height
 const SceneryScript = preload("res://source/agent/Scenery.gd")
@@ -48,6 +49,7 @@ var _hud = null
 var _first_snapshot = true
 var _decor = null
 var _scenery = null
+var _dressing = null
 var _pending_approvals = {}
 var _mission_id = ""
 var ui_scale = 1.0  # menus / HUD
@@ -80,6 +82,8 @@ func _ready():
 	super()
 	_scenery = SceneryScript.new()
 	add_child(_scenery)
+	_dressing = BaseDressingScript.new()
+	add_child(_dressing)
 	_decor = WorldDecorScript.new()
 	_decor.ui_scale = label_scale
 	add_child(_decor)
@@ -349,6 +353,8 @@ func view_back() -> Vector3:
 func _rebuild_decor():
 	_decor.clear()
 	_decor.view_up = -view_back()
+	_dressing.view_back = view_back()
+	_dressing.build(_layout)
 	_decor.center = _center()
 	_decor.ui_scale = label_scale
 	_decor.buildings = {}

@@ -51,6 +51,8 @@ func build(terrain: String):
 			continue
 		if set.get("water", "") != "" and _in_water(set["water"], p, 1.5):
 			continue
+		if _on_approach_road(p):
+			continue
 		var kind = _pick(items, rng.randf())
 		var s = rng.randf_range(0.75, 1.35)
 		if kind == "mesa":
@@ -80,6 +82,16 @@ func _outside(p: Vector3) -> float:
 	var dx = max(0.0, max(-p.x, p.x - map_size))
 	var dz = max(0.0, max(-p.z, p.z - map_size))
 	return Vector2(dx, dz).length()
+
+
+# The dirt roads that leave the base through its gates (WorldDecor) stay clear.
+func _on_approach_road(p: Vector3) -> bool:
+	for v in [15.0, 29.0]:
+		if absf(p.x - v) < 2.2 and (p.z < 0.0 or p.z > map_size):
+			return true
+		if absf(p.z - v) < 2.2 and (p.x < 0.0 or p.x > map_size):
+			return true
+	return false
 
 
 static func _pick(items: Array, r: float) -> String:

@@ -63,7 +63,11 @@ natively), pnpm, Godot 4.4+ (`brew install --cask godot`) and Ollama.
 ### The screen
 
 The base is seen diagonally, framed by scenery that suits the terrain (forest and a lake on
-Grassland, cacti in the Sahara, rocks and craters on the planets). Everything on screen comes
+Grassland, cacti in the Sahara, rocks and craters on the planets). It is walled, with gates
+where the paved streets leave and towers at the corners; each district flies a banner in its
+department's colour and holds props that suit it (cargo and trucks in Engineering, solar
+arrays and dishes in Research, parked ships in the Commons). Props are placed clear of
+buildings and their doors, and are laid out the same way every time for the same base. Everything on screen comes
 from the live world state:
 
 - **Top bar:** tabs (Mission, Departments, Build, Settings), tokens and cost against the

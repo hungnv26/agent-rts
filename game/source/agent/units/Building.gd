@@ -30,6 +30,7 @@ func _ready():
 	if model_path != "":
 		_pivot = Fx.fitted(model_path, model_size, 0.0, 4.2)  # tall models (rocket) stay in scale
 		find_child("Geometry").add_child(_pivot)
+		_add_extras()
 	await super()
 	var ui_scale = _match.label_scale if "label_scale" in _match else 1.0
 	var top = max(2.4, (_pivot.get_meta("height", 2.0) if _pivot else 2.0) + 0.7)
@@ -41,6 +42,28 @@ func _ready():
 	if snapshots != null and icon_kind != "":
 		_make_name_plate(top, ui_scale)
 	_render_status()
+
+
+# Finishing touches on some models: a roof module on KayKit domes (picked per building,
+# so neighbours differ) and a parked ship on landing pads.
+const ROOFS = ["roofmodule_solarpanels", "roofmodule_cargo_A", "roofmodule_cargo_B", "roofmodule_solarpanels", "roofmodule_base"]
+
+
+func _add_extras():
+	var model = _pivot.get_child(0)
+	var file = model_path.get_file().get_basename()
+	if file.begins_with("basemodule_") and file != "basemodule_garage":
+		var roof = load("res://assets/models/kaykit-spacebase/%s.gltf" % ROOFS[abs(hash(building_id)) % ROOFS.size()]).instantiate()
+		roof.position = Vector3(0, 1.0, 0)
+		model.add_child(roof)
+		_pivot.set_meta("height", _pivot.get_meta("height", 2.0) * 1.5)
+	elif file == "landingpad_large":
+		var ship = load("res://assets/models/quaternius-space/Spaceship_A.glb").instantiate()
+		ship.scale = Vector3.ONE * 0.15
+		ship.position = Vector3(0, 0.5, 0)
+		ship.rotation.y = PI * 0.25
+		model.add_child(ship)
+		_pivot.set_meta("height", 2.4)
 
 
 # The name as a plate (department icon + name on a dark pill), rendered once by the HUD.

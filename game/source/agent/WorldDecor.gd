@@ -48,6 +48,10 @@ func _build_districts():
 	for v in Departments.STREETS:
 		_street(Vector3(v, 0, size * 0.5), size - 2.0, false)
 		_street(Vector3(size * 0.5, 0, v), size - 2.0, true)
+		# Dirt approach roads from the gates out into the country.
+		for out in [-14.0, size + 14.0]:
+			_street(Vector3(v, 0, out), 28.0, false, false)
+			_street(Vector3(out, 0, v), 28.0, true, false)
 	for r in 3:
 		for c in 3:
 			var dept = Departments.DISTRICTS[r][c]
@@ -71,17 +75,19 @@ func _build_districts():
 			_ground_text(Departments.NAMES[dept].to_upper(), name_pos, col)
 
 
-func _street(pos: Vector3, length: float, east_west: bool):
+func _street(pos: Vector3, length: float, east_west: bool, paved := true):
 	var plane = PlaneMesh.new()
-	plane.size = Vector2(1.3, length)  # the road shader runs along the plane's length
+	plane.size = Vector2(1.6, length)  # the road shader runs along the plane's length
 	var mat = ShaderMaterial.new()
 	mat.shader = ROAD_SHADER
 	mat.set_shader_parameter("dirt", road_color)
+	mat.set_shader_parameter("paved", 1.0 if paved else 0.0)
+	mat.set_shader_parameter("length", length)
 	var mi = MeshInstance3D.new()
 	mi.mesh = plane
 	mi.material_override = mat
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	mi.position = pos + Vector3(0, 0.015, 0)
+	mi.position = pos + Vector3(0, 0.015 if east_west else 0.018, 0)
 	if east_west:
 		mi.rotation.y = PI / 2.0
 	add_child(mi)
