@@ -188,7 +188,13 @@ func _make_label(font_size, pos):
 
 
 func _place_labels():
-	var p = global_position + Vector3(0, _label_y, -_label_back)
+	# Screen-up of the vehicle, whichever way the camera faces.
+	var up = Vector3(0, 0, -1)
+	var cam = get_viewport().get_camera_3d()
+	if cam != null:
+		var z = cam.global_basis.z
+		up = -Vector3(z.x, 0, z.z).normalized()
+	var p = global_position + Vector3(0, _label_y, 0) + up * _label_back
 	if _name_label != null:
 		_name_label.global_position = p
 	if _badge != null:

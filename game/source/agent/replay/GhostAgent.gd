@@ -78,7 +78,7 @@ func is_moving():
 func _process(delta):
 	var now = Time.get_ticks_msec() / 1000.0
 	for l in _labels:
-		l.global_position = global_position + _label_offset
+		l.global_position = global_position + _view_offset()
 	if _t < 1.0:
 		_t = min(1.0, _t + delta / MOVE_S)
 		var e = _t * _t * (3.0 - 2.0 * _t)
@@ -98,3 +98,13 @@ func _render_badge():
 		text += "  %d%%" % int(round(float(progress) * 100.0))
 	_badge.text = text
 	_badge.modulate = style["color"]
+
+
+# _label_offset with its "back" part turned to screen-up for the current camera.
+func _view_offset() -> Vector3:
+	var cam = get_viewport().get_camera_3d()
+	if cam == null:
+		return _label_offset
+	var z = cam.global_basis.z
+	var up = -Vector3(z.x, 0, z.z).normalized()
+	return Vector3(0, _label_offset.y, 0) + up * -_label_offset.z

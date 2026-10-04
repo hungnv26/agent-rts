@@ -6,6 +6,7 @@ extends "res://source/match/Match.gd"
 # player's layout, owned by the adapter and edited in Build mode; this scene reconciles the
 # map with it whenever it changes.
 
+const SceneryScript = preload("res://source/agent/Scenery.gd")
 const HudUi = preload("res://source/agent/hud/Ui.gd")
 const Departments = preload("res://source/agent/Departments.gd")
 const AgentScene = preload("res://source/agent/units/Agent.tscn")
@@ -44,6 +45,7 @@ var _client = null
 var _hud = null
 var _first_snapshot = true
 var _decor = null
+var _scenery = null
 var _pending_approvals = {}
 var _mission_id = ""
 var ui_scale = 1.0  # menus / HUD
@@ -74,6 +76,8 @@ func _ready():
 	$Players/Human.add_child(cc)
 	_buildings["command_centre"] = cc
 	super()
+	_scenery = SceneryScript.new()
+	add_child(_scenery)
 	_decor = WorldDecorScript.new()
 	_decor.ui_scale = label_scale
 	add_child(_decor)
@@ -300,6 +304,7 @@ func _apply_terrain(id: String):
 	if id == _terrain_id:
 		return
 	_terrain_id = id
+	_scenery.build(id)
 	var t = Terrains.get_preset(id)
 	var mat = map.find_child("Terrain").mesh.material
 	if mat is ShaderMaterial:
@@ -313,8 +318,24 @@ func _apply_terrain(id: String):
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	env.ambient_light_color = t["ambient"]
 	env.ambient_light_energy = t["ambient_energy"]
+	# Contact shadows (SSAO), a soft sun, a touch more colour; glow only on genuinely bright bits.
+	env.fog_enabled = false  # Open RTS's haze greys out the far camera
+	env.volumetric_fog_enabled = false
+	env.tonemap_mode = Environment.TONE_MAPPER_ACES
+	env.tonemap_exposure = 1.0
+	env.adjustment_enabled = true
+	env.adjustment_saturation = 1.12
+	env.adjustment_contrast = 1.05
+	env.ssao_enabled = true
+	env.ssao_radius = 1.4
+	env.ssao_intensity = 1.8
+	env.glow_enabled = true
+	env.glow_intensity = 0.3
+	env.glow_hdr_threshold = 1.3
 	sun.light_color = t["sun"]
-	sun.light_energy = t["sun_energy"]
+	sun.light_energy = t["sun_energy"] * 1.1
+	sun.light_angular_distance = 1.5
+	sun.shadow_blur = 1.2
 	_decor.set_road_color(t["road"])
 	if _hud != null:
 		_hud.set_terrain(id)
@@ -328,8 +349,16 @@ func _remove_agent(id):
 	_hud.remove_agent(id)
 
 
+# Ground direction pointing at the camera (the "front" of things, screen-down).
+func view_back() -> Vector3:
+	var z = _camera.global_basis.z if _camera != null else Vector3(0, 0, 1)
+	var flat = Vector3(z.x, 0, z.z)
+	return flat.normalized() if flat.length() > 0.01 else Vector3(0, 0, 1)
+
+
 func _rebuild_decor():
 	_decor.clear()
+	_decor.view_up = -view_back()
 	_decor.center = _center()
 	_decor.ui_scale = label_scale
 	_decor.buildings = {}
@@ -369,7 +398,7 @@ func _target_for(location, agent_id):
 	# Characters stand right in front of the building (the side facing the camera), so
 	# they're visible and stay inside their own district.
 	var base_r = 3.4 if location == "command_centre" else 2.6
-	return _arc_slot(pos, Vector3(0, 0, 1), idx, n, base_r)
+	return _arc_slot(pos, view_back(), idx, n, base_r)
 
 
 # Slot `i` on rows of arcs around a building, filling the `facing` side first;

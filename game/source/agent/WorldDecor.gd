@@ -13,6 +13,7 @@ const Departments = preload("res://source/agent/Departments.gd")
 var buildings = {}  # id -> {"pos": Vector3, "accent": Color, "size": float}
 var spots = {}  # id -> {"pos": Vector3, "color": Color, "label": String}
 var center = Vector3(22, 0, 22)
+var view_up = Vector3(0, 0, -1)  # screen-up on the ground (set by AgentMatch from the camera)
 var ui_scale = 1.0
 
 var road_color = Color(0.62, 0.42, 0.36)
@@ -55,7 +56,7 @@ func _build_districts():
 			var tint = StandardMaterial3D.new()
 			tint.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 			tint.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-			tint.albedo_color = Color(col, 0.09)
+			tint.albedo_color = Color(col, 0.07)
 			var plane = PlaneMesh.new()
 			plane.size = Vector2(Departments.CELL - 1.5, Departments.CELL - 1.5)
 			var mi = MeshInstance3D.new()
@@ -96,7 +97,7 @@ func _ground_text(text: String, pos: Vector3, color: Color):
 	l.modulate = Color(color.lightened(0.15), 0.72)
 	l.outline_modulate = Color(0.04, 0.05, 0.08, 0.7)
 	l.billboard = BaseMaterial3D.BILLBOARD_DISABLED
-	l.rotation_degrees = Vector3(-90, 0, 0)  # flat on the ground, reading north-up
+	l.rotation = Vector3(-PI / 2, atan2(-view_up.x, -view_up.z), 0)  # flat, reading screen-up
 	l.position = pos + Vector3(0, 0.03, 0)
 	l.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	l.no_depth_test = true  # tall buildings would hide it; it reads as a map overlay
@@ -114,7 +115,7 @@ func _build_rally_point():
 	ring.position = s.pos + Vector3(0, 0.02, 0)
 	add_child(ring)
 	var l = Fx.label(self, s.label, 22, Color(1.0, 0.9, 0.6), ui_scale)
-	l.position = s.pos + Vector3(0, 0.8, -2.3)
+	l.position = s.pos + Vector3(0, 0.8, 0) + view_up * 2.3
 
 
 func _build_repair_bay():
@@ -133,4 +134,4 @@ func _build_repair_bay():
 	core.rotation.y = PI / 8.0
 	add_child(core)
 	var l = Fx.label(self, s.label, 22, Color(1.0, 0.7, 0.6), ui_scale)
-	l.position = s.pos + Vector3(0, 0.8, -2.4)
+	l.position = s.pos + Vector3(0, 0.8, 0) + view_up * 2.4
