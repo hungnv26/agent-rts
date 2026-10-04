@@ -13,9 +13,9 @@ const WINDOW_SIZES = [
 	Vector2i(1280, 720), Vector2i(1920, 1080), Vector2i(2560, 1440), Vector2i(3200, 1800), Vector2i(3840, 2160)
 ]
 const RENDER_SCALES = [0.5, 0.67, 0.75, 1.0]
-const TEXT_SIZES = [0.8, 0.9, 1.0, 1.2]
+const TEXT_SIZES = [0.7, 0.8, 0.9, 1.0, 1.2]
 const TEXT_DEFAULT = 0.8
-const LABEL_SIZES = [0.4, 0.5, 0.6, 0.7, 0.8, 1.0]
+const LABEL_SIZES = [0.3, 0.4, 0.5, 0.6, 0.7, 0.8]
 const LABEL_DEFAULT = 0.6
 # Text size scale. 100% is two steps below the earlier "Small" (0.8 x 0.85 x 0.85 of the
 # original layout); the default is 80%, two steps smaller again.
