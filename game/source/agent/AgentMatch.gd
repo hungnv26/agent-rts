@@ -284,18 +284,11 @@ func _apply_terrain(id: String):
 		_env_original = {"env": env_node.environment, "sun_color": sun.light_color, "sun_energy": sun.light_energy}
 		env_node.environment = env_node.environment.duplicate()
 	var env = env_node.environment
-	if id == "mars":
-		env.ambient_light_source = _env_original["env"].ambient_light_source
-		env.ambient_light_color = _env_original["env"].ambient_light_color
-		env.ambient_light_energy = _env_original["env"].ambient_light_energy
-		sun.light_color = _env_original["sun_color"]
-		sun.light_energy = _env_original["sun_energy"]
-	else:
-		env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-		env.ambient_light_color = t["ambient"]
-		env.ambient_light_energy = t["ambient_energy"]
-		sun.light_color = t["sun"]
-		sun.light_energy = t["sun_energy"]
+	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+	env.ambient_light_color = t["ambient"]
+	env.ambient_light_energy = t["ambient_energy"]
+	sun.light_color = t["sun"]
+	sun.light_energy = t["sun_energy"]
 	_decor.set_road_color(t["road"])
 	if _hud != null:
 		_hud.set_terrain(id)
@@ -670,8 +663,8 @@ func _terrain_tour(dir: String, quit_after: bool):
 	DirAccess.make_dir_recursive_absolute(dir)
 	for i in Terrains.ORDER.size():
 		var id = Terrains.ORDER[i]
-		get_tree().create_timer(3.0 + i * 1.5, true, false, true).timeout.connect(func(): _apply_terrain(id))
-		get_tree().create_timer(3.9 + i * 1.5, true, false, true).timeout.connect(
+		get_tree().create_timer(3.0 + i * 3.0, true, false, true).timeout.connect(func(): _apply_terrain(id))
+		get_tree().create_timer(5.5 + i * 3.0, true, false, true).timeout.connect(
 			func():
 				get_viewport().get_texture().get_image().save_png("%s/terrain_%02d_%s.png" % [dir, i, id])
 				if quit_after and i == Terrains.ORDER.size() - 1:

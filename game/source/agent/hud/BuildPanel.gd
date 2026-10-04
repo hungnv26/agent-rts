@@ -193,7 +193,7 @@ func _render_terrain():
 func _terrain_button(id: String, t: Dictionary) -> Button:
 	var b = _small(t["name"])
 	b.custom_minimum_size = Vector2(130, 34)
-	b.icon = _swatch_icon(t["a"], t["c"])
+	b.icon = _swatch_icon(t["swatch"][0], t["swatch"][1])
 	_paint(b, id == _terrain)
 	b.pressed.connect(func(): command.emit({"type": "layout.terrain", "terrain": id}))
 	return b

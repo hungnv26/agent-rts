@@ -5,7 +5,6 @@
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_terrain"]
 shader = ExtResource("2_terrain")
-shader_parameter/metallic_value = 1.0
 
 [sub_resource type="PlaneMesh" id="PlaneMesh_agent"]
 resource_local_to_scene = true
