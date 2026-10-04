@@ -1,13 +1,14 @@
 extends Node3D
 
-# Static ground markings on the Martian surface: dirt roads from the Command Centre to each
-# building and spot (a road darkens slightly while an agent uses it), a painted Rally Point
-# (agents waiting on others) and a striped Repair Bay (agents whose step failed).
+# Static ground markings: the district grid (streets between the departments' districts,
+# a light tint in each department's colour and its name painted on the ground), a painted
+# Rally Point (agents waiting on others) and a striped Repair Bay (agents whose step failed).
 # No lights, no animation. No collision, no navigation.
 
 const Fx = preload("res://source/agent/Fx.gd")
 const HAZARD_SHADER = preload("res://source/agent/hazard.gdshader")
 const ROAD_SHADER = preload("res://source/agent/road.gdshader")
+const Departments = preload("res://source/agent/Departments.gd")
 
 var buildings = {}  # id -> {"pos": Vector3, "accent": Color, "size": float}
 var spots = {}  # id -> {"pos": Vector3, "color": Color, "label": String}
@@ -15,66 +16,92 @@ var center = Vector3(16, 0, 16)
 var ui_scale = 1.0
 
 var road_color = Color(0.62, 0.42, 0.36)
-var _roads = {}  # location -> ShaderMaterial
-var _use = {}  # location -> smoothed 0..1
+var _streets = []  # ShaderMaterial per street
 
 
 func set_road_color(c: Color):
 	road_color = c
-	for mat in _roads.values():
+	for mat in _streets:
 		mat.set_shader_parameter("dirt", c)
 
 
 func clear():
 	for child in get_children():
 		child.queue_free()
-	_roads.clear()
-	_use.clear()
+	_streets.clear()
 
 
 func build():
-	_build_roads()
+	_build_districts()
 	_build_rally_point()
 	_build_repair_bay()
 
 
 # Called every frame by AgentMatch with the live agents (or replay ghosts).
-func update_world(agents: Array, delta: float):
-	var wanted = {}
-	for a in agents:
-		if not a.state in ["idle", "complete"]:
-			wanted[a.location] = 1.0
-	for loc in _roads:
-		var cur = lerpf(_use.get(loc, 0.0), wanted.get(loc, 0.0), clampf(delta * 2.0, 0.0, 1.0))
-		_use[loc] = cur
-		_roads[loc].set_shader_parameter("in_use", cur)
+func update_world(_agents: Array, _delta: float):
+	pass
 
 
-func _build_roads():
-	var targets = {}
-	for id in buildings:
-		if id != "command_centre":
-			targets[id] = buildings[id].pos
-	for id in spots:
-		targets[id] = spots[id].pos
-	for id in targets:
-		var to = targets[id]
-		var dir = (to - center).normalized()
-		var a = center + dir * 2.2
-		var b = to - dir * 1.6
-		var plane = PlaneMesh.new()
-		plane.size = Vector2(1.5, a.distance_to(b))
-		var mat = ShaderMaterial.new()
-		mat.shader = ROAD_SHADER
-		mat.set_shader_parameter("dirt", road_color)
-		var mi = MeshInstance3D.new()
-		mi.mesh = plane
-		mi.material_override = mat
-		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		mi.transform = Transform3D(Basis.looking_at(dir, Vector3.UP), (a + b) * 0.5 + Vector3(0, 0.015, 0))
-		add_child(mi)
-		_roads[id] = mat
-		_use[id] = 0.0
+func _build_districts():
+	var size = 32.0
+	for v in Departments.STREETS:
+		_street(Vector3(v, 0, size * 0.5), size - 2.0, false)
+		_street(Vector3(size * 0.5, 0, v), size - 2.0, true)
+	for r in 3:
+		for c in 3:
+			var dept = Departments.DISTRICTS[r][c]
+			var col = Departments.COLORS[dept]
+			var at = Departments.cell_centre(c, r)
+			var tint = StandardMaterial3D.new()
+			tint.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+			tint.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+			tint.albedo_color = Color(col, 0.09)
+			var plane = PlaneMesh.new()
+			plane.size = Vector2(Departments.CELL - 1.5, Departments.CELL - 1.5)
+			var mi = MeshInstance3D.new()
+			mi.mesh = plane
+			mi.material_override = tint
+			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			mi.position = at + Vector3(0, 0.012, 0)
+			add_child(mi)
+			# The name lies on the ground between the two rows of buildings (in the
+			# Command district, below the Command Centre and Human Approval).
+			var name_pos = at + (Vector3(0, 0, 3.6) if dept == "command" else Vector3(0, 0, 0.3))
+			_ground_text(Departments.NAMES[dept].to_upper(), name_pos, col)
+
+
+func _street(pos: Vector3, length: float, east_west: bool):
+	var plane = PlaneMesh.new()
+	plane.size = Vector2(1.3, length)  # the road shader runs along the plane's length
+	var mat = ShaderMaterial.new()
+	mat.shader = ROAD_SHADER
+	mat.set_shader_parameter("dirt", road_color)
+	var mi = MeshInstance3D.new()
+	mi.mesh = plane
+	mi.material_override = mat
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	mi.position = pos + Vector3(0, 0.015, 0)
+	if east_west:
+		mi.rotation.y = PI / 2.0
+	add_child(mi)
+	_streets.append(mat)
+
+
+func _ground_text(text: String, pos: Vector3, color: Color):
+	var l = Label3D.new()
+	l.text = text
+	l.font_size = 96
+	l.pixel_size = 0.0075
+	l.outline_size = 18
+	l.modulate = Color(color.lightened(0.15), 0.72)
+	l.outline_modulate = Color(0.04, 0.05, 0.08, 0.7)
+	l.billboard = BaseMaterial3D.BILLBOARD_DISABLED
+	l.rotation_degrees = Vector3(-90, 0, 0)  # flat on the ground, reading north-up
+	l.position = pos + Vector3(0, 0.03, 0)
+	l.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	l.no_depth_test = true  # tall buildings would hide it; it reads as a map overlay
+	l.render_priority = -1  # below building and agent name labels
+	add_child(l)
 
 
 func _build_rally_point():

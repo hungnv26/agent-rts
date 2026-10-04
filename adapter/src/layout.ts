@@ -64,6 +64,10 @@ export const CAPABILITY_TOOLS: Record<Capability, RegExp | null> = {
   meeting: null,
 };
 
+export const MAX_BUILDINGS = 32; // = the district slots plus the two in the centre
+export const MAX_CUSTOM_AGENTS = 24; // on top of the 7 built-in characters
+const BUILDING_SPACING = 4.5; // centre to centre; footprints are ~3.6
+
 export const BUILDING_MODELS = [
   "satelliteDish_large", "satelliteDish_detailed", "hangar_largeA", "hangar_largeB", "hangar_roundA",
   "hangar_roundB", "hangar_roundGlass", "hangar_smallA", "hangar_smallB", "gate_complex", "gate_simple",
@@ -79,7 +83,105 @@ export const VEHICLE_MODELS = [
   "Tank", "MonorailTrain", // assembled from several parts
 ];
 
-export const DEFAULT_LAYOUT: BaseLayout = {
+// ---- departments and districts ----
+// Every building belongs to a department (its capability; Human Approval sits with Command)
+// and every character to its home building's department. The map is a 3x3 grid of districts
+// separated by streets; each district has 2x2 building slots on a 5-unit lattice.
+//
+//   Research   | Commons (Rally Point) | Engineering
+//   Research   | Command + Approval    | Engineering
+//   Knowledge  | Knowledge             | Commons (Repair Bay)
+
+export type Department = "command" | "research" | "code" | "knowledge" | "meeting";
+
+export const DEPARTMENTS: Record<Department, { name: string; color: string }> = {
+  command: { name: "Command", color: "#b48cff" },
+  research: { name: "Research", color: "#4fb3ff" },
+  code: { name: "Engineering", color: "#ff9940" },
+  knowledge: { name: "Knowledge", color: "#5fd98a" },
+  meeting: { name: "Commons", color: "#ff7fae" },
+};
+
+export function departmentOf(capability: Capability): Department {
+  return capability === "approval" ? "command" : capability;
+}
+
+const LATTICE = [3.5, 8.5, 13.5, 18.5, 23.5, 28.5];
+// DISTRICTS[row][col], rows north (low z) to south.
+export const DISTRICTS: Department[][] = [
+  ["research", "meeting", "code"],
+  ["research", "command", "code"],
+  ["knowledge", "knowledge", "meeting"],
+];
+// Fixed places in the Command district and for the two spots (each spot takes one slot).
+const FIXED: Record<string, { x: number; z: number }> = {
+  command_centre: { x: 13.5, z: 16 },
+  human_approval: { x: 18.5, z: 16 },
+  rally_point: { x: 13.5, z: 8.5 },
+  repair_bay: { x: 28.5, z: 28.5 },
+};
+
+interface Slot { x: number; z: number; dept: Department }
+
+const SLOTS: Slot[] = (() => {
+  const out: Slot[] = [];
+  for (let zi = 0; zi < 6; zi++) {
+    for (let xi = 0; xi < 6; xi++) {
+      const dept = DISTRICTS[zi >> 1][xi >> 1];
+      const x = LATTICE[xi];
+      const z = LATTICE[zi];
+      if (dept === "command") continue; // the centre holds only the Command Centre and Approval
+      if (Object.values(FIXED).some((f) => f.x === x && f.z === z)) continue;
+      out.push({ x, z, dept });
+    }
+  }
+  // Inner slots first, so a small department hugs the centre.
+  const d = (s: Slot) => Math.hypot(s.x - 16, s.z - 16);
+  return out.sort((a, b) => d(a) - d(b) || a.z - b.z || a.x - b.x);
+})();
+
+function districtCentre(dept: Department): { x: number; z: number } {
+  const cells: { x: number; z: number }[] = [];
+  DISTRICTS.forEach((row, r) => row.forEach((d, c) => d === dept && cells.push({ x: 6 + c * 10, z: 6 + r * 10 })));
+  return { x: cells.reduce((a, b) => a + b.x, 0) / cells.length, z: cells.reduce((a, b) => a + b.z, 0) / cells.length };
+}
+
+function slotFree(slot: { x: number; z: number }, buildings: BuildingDef[], ignore?: BuildingDef): boolean {
+  return buildings.every((b) => b === ignore || Math.hypot(b.x - slot.x, b.z - slot.z) >= BUILDING_SPACING);
+}
+
+// Next free slot in the department's district; if that's full, the free slot nearest to it.
+export function freeSlot(l: BaseLayout, dept: Department, ignore?: BuildingDef): { x: number; z: number } | null {
+  const own = SLOTS.find((s) => s.dept === dept && slotFree(s, l.buildings, ignore));
+  if (own) return { x: own.x, z: own.z };
+  const c = districtCentre(dept);
+  const rest = SLOTS.filter((s) => slotFree(s, l.buildings, ignore)).sort((a, b) => Math.hypot(a.x - c.x, a.z - c.z) - Math.hypot(b.x - c.x, b.z - c.z));
+  return rest[0] ? { x: rest[0].x, z: rest[0].z } : null;
+}
+
+// Moves every building into its department's district (keeping each department's order,
+// built-ins first), puts the spots in their places and paints buildings in department colours.
+export function organiseLayout(l: BaseLayout): BaseLayout {
+  const placed: BuildingDef[] = [];
+  for (const id of ["command_centre", "human_approval"]) {
+    const b = l.buildings.find((x) => x.id === id);
+    if (b) Object.assign(b, FIXED[id]), placed.push(b);
+  }
+  for (const s of l.spots) Object.assign(s, FIXED[s.id]);
+  const order = (Object.keys(DEPARTMENTS) as Department[]).filter((d) => d !== "command");
+  const rest = l.buildings.filter((b) => !placed.includes(b));
+  const byDept = (d: Department) => rest.filter((b) => departmentOf(b.capability) === d).sort((a, b) => Number(!!b.builtin) - Number(!!a.builtin));
+  const queue = [...order.flatMap(byDept), ...rest.filter((b) => departmentOf(b.capability) === "command")];
+  for (const b of queue) {
+    const slot = freeSlot({ ...l, buildings: placed }, departmentOf(b.capability));
+    if (slot) Object.assign(b, slot);
+    placed.push(b);
+  }
+  for (const b of l.buildings) b.color = DEPARTMENTS[departmentOf(b.capability)].color;
+  return l;
+}
+
+export const DEFAULT_LAYOUT: BaseLayout = organiseLayout({
   version: 1,
   size: 32,
   terrain: "mars",
@@ -103,7 +205,7 @@ export const DEFAULT_LAYOUT: BaseLayout = {
     { id: "writer", name: "Writer", hermesId: "writer", job: "Drafts the report from the findings.", skill: "reasoning", model: "craft_speederB", color: "#ff80bf", home: "knowledge_library", builtin: true },
     { id: "reviewer", name: "Reviewer", hermesId: "reviewer", job: "Checks the result for accuracy and gaps; always the last step.", skill: "reasoning", model: "craft_racer", color: "#d98cff", home: "knowledge_library", builtin: true },
   ],
-};
+});
 
 export function cloneLayout(l: BaseLayout): BaseLayout {
   return structuredClone(l);
@@ -138,12 +240,15 @@ export function isCore(buildingId: string): boolean {
   return buildingId === "command_centre" || buildingId === "human_approval";
 }
 
-export function buildingForTool(l: BaseLayout, tool: string): string | null {
-  for (const b of l.buildings) {
-    const re = CAPABILITY_TOOLS[b.capability];
-    if (re && re.test(tool)) return b.id;
-  }
-  return null;
+// The building an agent drives to for a tool: its own home if that hosts the work,
+// otherwise the nearest building of the matching department.
+export function buildingForTool(l: BaseLayout, tool: string, agentId?: string): string | null {
+  const fits = l.buildings.filter((b) => CAPABILITY_TOOLS[b.capability]?.test(tool));
+  if (fits.length === 0) return null;
+  const home = l.buildings.find((b) => b.id === (agentId ? homeOf(l, agentId) : ""));
+  if (!home) return fits[0].id;
+  if (fits.includes(home)) return home.id;
+  return fits.reduce((a, b) => (Math.hypot(b.x - home.x, b.z - home.z) < Math.hypot(a.x - home.x, a.z - home.z) ? b : a)).id;
 }
 
 export function homeOf(l: BaseLayout, agentId: string): string {
@@ -174,10 +279,6 @@ function coord(v: unknown, size: number): number {
 
 export class LayoutError extends Error {}
 
-export const MAX_BUILDINGS = 32;
-export const MAX_CUSTOM_AGENTS = 24; // on top of the 7 built-in characters
-const BUILDING_SPACING = 4.5; // centre to centre; footprints are ~3.6
-
 function uniqueId(base: string, taken: Set<string>): string {
   let id = base;
   for (let i = 2; taken.has(id); i++) id = `${base}_${i}`;
@@ -191,15 +292,26 @@ export function upsertBuilding(l: BaseLayout, input: Record<string, unknown>): B
   if (!existing && !label) throw new LayoutError("A building needs a name.");
   if (!existing && l.buildings.length >= MAX_BUILDINGS) throw new LayoutError(`The base holds at most ${MAX_BUILDINGS} buildings.`);
   const model = typeof input.model === "string" && BUILDING_MODELS.includes(input.model) ? input.model : existing?.model ?? "hangar_smallA";
-  const color = typeof input.color === "string" && COLOR_RE.test(input.color) ? input.color : existing?.color ?? "#cccccc";
   const capability =
     existing?.builtin
       ? existing.capability
       : CAPABILITIES.includes(input.capability as Capability)
         ? (input.capability as Capability)
         : existing?.capability ?? "meeting";
-  const x = input.x !== undefined ? coord(input.x, l.size) : existing?.x ?? l.size / 2;
-  const z = input.z !== undefined ? coord(input.z, l.size) : existing?.z ?? l.size / 2;
+  const color = DEPARTMENTS[departmentOf(capability)].color;
+  let x: number;
+  let z: number;
+  if (input.x !== undefined || input.z !== undefined) {
+    x = coord(input.x, l.size);
+    z = coord(input.z, l.size);
+  } else if (!existing || (input.auto === true && departmentOf(capability) !== departmentOf(existing.capability))) {
+    // No position given: the next free slot in its department's district.
+    const slot = freeSlot(l, departmentOf(capability), existing);
+    if (!slot) throw new LayoutError(`No free slot left; choose a spot on the map for ${label || existing?.label}.`);
+    ({ x, z } = slot);
+  } else {
+    ({ x, z } = existing);
+  }
   for (const b of l.buildings) {
     if (b !== existing && Math.hypot(b.x - x, b.z - z) < BUILDING_SPACING) throw new LayoutError(`Too close to ${b.label}.`);
   }
@@ -244,7 +356,7 @@ export function upsertAgent(l: BaseLayout, input: Record<string, unknown>): Agen
   if (!existing && !name) throw new LayoutError("A character needs a name.");
   const model = typeof input.model === "string" && VEHICLE_MODELS.includes(input.model) ? input.model : existing?.model ?? "rover";
   const color = typeof input.color === "string" && COLOR_RE.test(input.color) ? input.color : existing?.color ?? "#ffffff";
-  const home = typeof input.home === "string" && l.buildings.some((b) => b.id === input.home) ? input.home : existing?.home ?? "command_centre";
+  const home = typeof input.home === "string" && l.buildings.some((b) => b.id === input.home) ? input.home : existing?.home ?? defaultHome(l, input.skill);
   if (existing) {
     existing.name = name || existing.name;
     existing.model = model;
@@ -266,6 +378,12 @@ export function upsertAgent(l: BaseLayout, input: Record<string, unknown>): Agen
   if (!ID_RE.test(a.hermesId)) throw new LayoutError("Invalid character name.");
   l.agents.push(a);
   return a;
+}
+
+// Where a new character lives when none is chosen: a building of the department its skill uses.
+function defaultHome(l: BaseLayout, skill: unknown): string {
+  const want: Capability = skill === "web" ? "research" : "knowledge";
+  return l.buildings.find((b) => b.capability === want)?.id ?? "command_centre";
 }
 
 export function setTerrain(l: BaseLayout, terrain: unknown): void {

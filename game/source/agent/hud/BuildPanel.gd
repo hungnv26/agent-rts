@@ -7,9 +7,16 @@ extends PanelContainer
 signal command(cmd)  # layout.* command for the adapter
 signal place(kind, payload, label_text)  # ask the map for a click position
 
-const CAPABILITIES = [
-	["Web research", "research"], ["Code & data", "code"], ["Knowledge & notes", "knowledge"], ["Meeting point", "meeting"]
-]
+const Departments = preload("res://source/agent/Departments.gd")
+# Departments a player's building can join (Command is the Command Centre and Approval only).
+const CAPABILITIES = [["Research", "research"], ["Engineering", "code"], ["Knowledge", "knowledge"], ["Commons", "meeting"]]
+# Models that look the part for each department, offered first.
+const SUGGESTED = {
+	"research": ["satelliteDish_large", "satelliteDish_detailed", "satelliteDish", "AircraftFactory", "AntiAirTurret", "machine_wireless", "Rocket", "rocket_baseA"],
+	"code": ["hangar_largeA", "hangar_largeB", "VehicleFactory", "machine_generatorLarge", "machine_generator", "structure_diagonal", "machine_barrelLarge"],
+	"knowledge": ["hangar_roundGlass", "hangar_roundA", "hangar_roundB", "hangar_smallA", "hangar_smallB", "structure_closed", "machine_wirelessCable"],
+	"meeting": ["structure_detailed", "structure", "gate_simple", "gate_complex", "turret_double", "turret_single", "AntiGroundTurret", "machine_barrel"],
+}
 const CAPABILITY_TEXT = {
 	"command": "Command", "research": "Web research", "code": "Code & data", "knowledge": "Knowledge & notes",
 	"approval": "Human approval", "meeting": "Meeting point",
@@ -127,44 +134,87 @@ func _render():
 
 
 func _render_buildings():
-	for b in _layout.get("buildings", []):
-		var row = _row(Color.html(b["color"]), b["label"], CAPABILITY_TEXT.get(b["capability"], ""))
-		var move = _small("Move")
-		var def = b
-		move.pressed.connect(func(): place.emit("move", {"id": def["id"]}, def["label"]))
-		row.add_child(move)
-		var edit = _small("Edit")
-		edit.pressed.connect(func(): _open_building_form(def))
-		row.add_child(edit)
-		if not (b["id"] in ["command_centre", "human_approval"]):
-			var del = _small("Remove")
-			del.pressed.connect(func(): command.emit({"type": "layout.building.remove", "id": def["id"]}))
-			row.add_child(del)
-	for s in _layout.get("spots", []):
-		var col = Color(1.0, 0.82, 0.35) if s["id"] == "rally_point" else Color(1.0, 0.4, 0.4)
-		var row = _row(col, s["label"], "Agents waiting" if s["id"] == "rally_point" else "Agents after an error")
-		var move = _small("Move")
-		var spot = s
-		move.pressed.connect(func(): place.emit("spot", {"id": spot["id"]}, spot["label"]))
-		row.add_child(move)
+	var organise = hud._button("Organise base", true)
+	organise.tooltip_text = "Move every building into its department's district"
+	organise.pressed.connect(func(): command.emit({"type": "layout.organise"}))
+	_body.add_child(organise)
+	_body.add_child(_hint("Each department has its own district on the map. New buildings go into theirs; Organise tidies everything back into place."))
+	for dept in Departments.ORDER:
+		var items = _layout.get("buildings", []).filter(func(b): return Departments.of(b["capability"]) == dept)
+		var spots = _layout.get("spots", []) if dept == "meeting" else []
+		if items.is_empty() and spots.is_empty():
+			continue
+		_dept_header(dept, "%d building%s" % [items.size(), "" if items.size() == 1 else "s"])
+		for b in items:
+			var row = _row(Departments.COLORS[dept], b["label"], _residents(b["id"]))
+			var move = _small("Move")
+			var def = b
+			move.pressed.connect(func(): place.emit("move", {"id": def["id"]}, def["label"]))
+			row.add_child(move)
+			var edit = _small("Edit")
+			edit.pressed.connect(func(): _open_building_form(def))
+			row.add_child(edit)
+			if not (b["id"] in ["command_centre", "human_approval"]):
+				var del = _small("Remove")
+				del.pressed.connect(func(): command.emit({"type": "layout.building.remove", "id": def["id"]}))
+				row.add_child(del)
+		for sp in spots:
+			var col = Color(1.0, 0.82, 0.35) if sp["id"] == "rally_point" else Color(1.0, 0.4, 0.4)
+			var row = _row(col, sp["label"], "Agents waiting" if sp["id"] == "rally_point" else "Agents after an error")
+			var move = _small("Move")
+			var spot = sp
+			move.pressed.connect(func(): place.emit("spot", {"id": spot["id"]}, spot["label"]))
+			row.add_child(move)
 	var add = hud._button("+ New building", true)
 	add.pressed.connect(func(): _open_building_form(null))
 	_body.add_child(add)
-	_body.add_child(_hint("Agents drive to the building whose work matches the tool they use."))
+	_body.add_child(_hint("Agents drive to a building of the department whose work matches the tool they use, preferring their own home."))
+
+
+# Who lives in a building (characters whose home it is).
+func _residents(building_id: String) -> String:
+	var names = []
+	for a in _layout.get("agents", []):
+		if a.get("home", "") == building_id:
+			names.append(a["name"])
+	return ("Home of " + ", ".join(names)) if not names.is_empty() else "No residents"
+
+
+func _dept_header(dept: String, extra: String):
+	var row = HBoxContainer.new()
+	row.add_theme_constant_override("separation", 8)
+	var bar = ColorRect.new()
+	bar.color = Departments.COLORS[dept]
+	bar.custom_minimum_size = Vector2(4, 30)
+	row.add_child(bar)
+	var text = VBoxContainer.new()
+	text.add_theme_constant_override("separation", 0)
+	text.add_child(hud._label("%s  ·  %s" % [Departments.NAMES[dept].to_upper(), extra], 13, Departments.COLORS[dept].lightened(0.2)))
+	text.add_child(hud._label(Departments.WORK[dept], 12, hud.MUTED))
+	row.add_child(text)
+	var spacer = Control.new()
+	spacer.custom_minimum_size = Vector2(0, 4)
+	_body.add_child(spacer)
+	_body.add_child(row)
 
 
 func _render_agents():
-	for a in _layout.get("agents", []):
-		var sub = SKILL_TEXT.get(a["skill"], "") + " · home: " + _building_label(a["home"])
-		var row = _row(Color.html(a["color"]), a["name"], sub)
-		var def = a
-		var edit = _small("Edit")
-		edit.pressed.connect(func(): _open_agent_form(def))
-		row.add_child(edit)
-		if not a.get("builtin", false):
-			var del = _small("Remove")
-			del.pressed.connect(func(): command.emit({"type": "layout.agent.remove", "id": def["id"]}))
-			row.add_child(del)
+	for dept in Departments.ORDER:
+		var members = _layout.get("agents", []).filter(func(a): return Departments.of_building(_layout, a.get("home", "command_centre")) == dept)
+		if members.is_empty():
+			continue
+		_dept_header(dept, "%d agent%s" % [members.size(), "" if members.size() == 1 else "s"])
+		for a in members:
+			var sub = SKILL_TEXT.get(a["skill"], "") + " · lives at " + _building_label(a["home"])
+			var row = _row(Color.html(a["color"]), a["name"], sub)
+			var def = a
+			var edit = _small("Edit")
+			edit.pressed.connect(func(): _open_agent_form(def))
+			row.add_child(edit)
+			if not a.get("builtin", false):
+				var del = _small("Remove")
+				del.pressed.connect(func(): command.emit({"type": "layout.agent.remove", "id": def["id"]}))
+				row.add_child(del)
 	var add = hud._button("+ New character", true)
 	add.pressed.connect(func(): _open_agent_form(null))
 	_body.add_child(add)
@@ -211,7 +261,7 @@ static func _swatch_icon(a: Color, c: Color) -> ImageTexture:
 
 func _open_building_form(def):
 	if def == null:
-		_form = {"kind": "building", "editing": false, "data": {"label": "", "capability": "research", "model": "hangar_smallA", "color": PALETTE[0]}}
+		_form = {"kind": "building", "editing": false, "data": {"label": "", "capability": "research", "model": "satelliteDish_large"}}
 	else:
 		_form = {"kind": "building", "editing": true, "data": def.duplicate()}
 	_render()
@@ -238,33 +288,47 @@ func _render_building_form():
 	var name_edit = _line(d.get("label", ""), "e.g. Market Intel Centre")
 	name_edit.text_changed.connect(func(t): d["label"] = t)
 	_body.add_child(name_edit)
+	var dept = Departments.of(d["capability"])
 	if not builtin:
-		_body.add_child(_field_label("Work done here"))
+		_body.add_child(_field_label("Department"))
 		_body.add_child(_chips(CAPABILITIES, d["capability"], _set_and_render.bind(d, "capability")))
-	else:
-		_body.add_child(_hint("Work done here: " + CAPABILITY_TEXT.get(d["capability"], "") + " (built-in)"))
-	_body.add_child(_field_label("Model"))
-	var models = []
+	_body.add_child(_hint(Departments.NAMES[dept] + ": " + Departments.WORK[dept] + ("" if not builtin else " (built-in)") + ". Buildings take their department's colour."))
+	var suggested = SUGGESTED.get(dept, [])
+	var picks = []
+	var others = []
 	for m in BUILDING_MODELS:
-		models.append([m.replace("_", " "), m])
-	_body.add_child(_chips(models, d["model"], _set_and_render.bind(d, "model")))
-	_body.add_child(_field_label("Colour"))
-	_body.add_child(_swatches(d["color"], _set_and_render.bind(d, "color")))
+		(picks if m in suggested else others).append([m.replace("_", " "), m])
+	if not picks.is_empty():
+		_body.add_child(_field_label("Model: suggested for " + Departments.NAMES[dept]))
+		_body.add_child(_chips(picks, d["model"], _set_and_render.bind(d, "model")))
+	_body.add_child(_field_label("Other models" if not picks.is_empty() else "Model"))
+	_body.add_child(_chips(others, d["model"], _set_and_render.bind(d, "model")))
 	var actions = HBoxContainer.new()
 	actions.add_theme_constant_override("separation", 8)
 	if _form["editing"]:
 		var save = hud._button("Save", true)
-		save.pressed.connect(func(): _send({"type": "layout.building.upsert", "building": _pick(d, ["id", "label", "capability", "model", "color"])}))
+		# auto: a building that changes department moves to its new district.
+		save.pressed.connect(func(): _send({"type": "layout.building.upsert", "building": _pick(d, ["id", "label", "capability", "model"]).merged({"auto": true})}))
 		actions.add_child(save)
 	else:
-		var placeb = hud._button("Place on map", true)
+		var addb = hud._button("Add to district", true)
+		addb.tooltip_text = "Put it in the next free slot of its department's district"
+		addb.pressed.connect(
+			func():
+				if d["label"].strip_edges() == "":
+					hud.show_error("Give the building a name first.")
+					return
+				_send({"type": "layout.building.upsert", "building": _pick(d, ["label", "capability", "model"])})
+		)
+		actions.add_child(addb)
+		var placeb = hud._button("Choose spot")
 		placeb.pressed.connect(
 			func():
 				if d["label"].strip_edges() == "":
 					hud.show_error("Give the building a name first.")
 					return
 				_form["sent"] = true
-				place.emit("building", _pick(d, ["label", "capability", "model", "color"]), d["label"])
+				place.emit("building", _pick(d, ["label", "capability", "model"]), d["label"])
 		)
 		actions.add_child(placeb)
 	var cancel = hud._button("Cancel")
@@ -302,11 +366,16 @@ func _render_agent_form():
 	_body.add_child(_chips(vehicles, d["model"], _set_and_render.bind(d, "model")))
 	_body.add_child(_field_label("Colour"))
 	_body.add_child(_swatches(d["color"], _set_and_render.bind(d, "color")))
-	_body.add_child(_field_label("Home building"))
-	var homes = []
-	for b in _layout.get("buildings", []):
-		homes.append([b["label"], b["id"]])
-	_body.add_child(_chips(homes, d["home"], _set_and_render.bind(d, "home")))
+	_body.add_child(_field_label("Home building (decides the department)"))
+	for dept in Departments.ORDER:
+		var homes = []
+		for b in _layout.get("buildings", []):
+			if Departments.of(b["capability"]) == dept:
+				homes.append([b["label"], b["id"]])
+		if homes.is_empty():
+			continue
+		_body.add_child(hud._label(Departments.NAMES[dept], 12, Departments.COLORS[dept].lightened(0.2)))
+		_body.add_child(_chips(homes, d["home"], _set_and_render.bind(d, "home")))
 	var actions = HBoxContainer.new()
 	actions.add_theme_constant_override("separation", 8)
 	var save = hud._button("Save" if _form["editing"] else "Create character", true)

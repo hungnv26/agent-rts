@@ -5,6 +5,7 @@ import {
   DEFAULT_LAYOUT,
   LayoutError,
   moveSpot,
+  organiseLayout,
   removeAgent,
   removeBuilding,
   saveLayout,
@@ -59,6 +60,9 @@ export class Base {
         break;
       case "layout.terrain":
         setTerrain(next, cmd.terrain);
+        break;
+      case "layout.organise":
+        organiseLayout(next);
         break;
       case "layout.reset":
         break;

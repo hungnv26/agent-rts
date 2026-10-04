@@ -62,18 +62,43 @@ natively), pnpm, Godot 4.4+ (`brew install --cask godot`) and Ollama.
 
 ### Build mode
 
-Click **Build** (top right) to design your own base. Everything you build does real work:
+Click **Build** (top right) to design your own base. Everything you build does real work.
 
-- **Buildings:** add one with a name, model and colour, and choose the work done there (web
-  research, code & data, knowledge & notes, or a meeting point). Click **Place on map**, then
-  click where it should go. Agents whose tools match drive to your building. Any building,
-  the Rally Point and the Repair Bay can be moved; your own buildings can be removed (the
-  Command Centre and Human Approval are permanent). The base holds up to 32 buildings, at
-  least 4.5 units apart. Models: every standalone building in the Kenney Space Kit, Open RTS's
+The base is organised into five **departments**, each with a colour and a district on the map
+(a 3×3 grid of blocks split by streets, with the department's name painted on the ground):
+
+```
+Research   | Commons (Rally Point) | Engineering
+Research   | Command + Approval    | Engineering
+Knowledge  | Knowledge             | Commons (Repair Bay)
+```
+
+| Department | Work | Who lives there by default |
+| --- | --- | --- |
+| Command | Plans missions; you approve risky steps at Human Approval | Commander |
+| Research | Web search, news and sources | Researcher, Scout |
+| Engineering | Code, data and calculations | Coder |
+| Knowledge | Notes, analysis and writing | Analyst, Writer, Reviewer |
+| Commons | Shared spaces: meetings, waiting (Rally Point), repairs (Repair Bay) | none |
+
+A building belongs to the department of the work it hosts and takes its colour; a character
+belongs to its home building's department. The **Departments** panel (top left) shows each
+department's size, and clicking one moves the camera there. The agent list (right) is grouped
+the same way.
+
+- **Buildings:** add one with a name, a department and a model (models that suit the
+  department are offered first). **Add to district** puts it in the next free slot of its
+  district; **Choose spot** lets you click a place yourself. **Organise base** moves every
+  building back into its district. A tool call sends a character to a building of the matching
+  department, preferring its own home. Any building, the Rally Point and the Repair Bay can be
+  moved; your own buildings can be removed (the Command Centre and Human Approval are
+  permanent). The base holds up to 32 buildings (the districts' slots), at least 4.5 units
+  apart. Models: every standalone building in the Kenney Space Kit, Open RTS's
   own Vehicle Factory, Aircraft Factory and turrets, and a Rocket assembled from the kit's
   rocket parts.
 - **Characters:** create one with a name, a job description, a skill (web research or thinking
-  only), a vehicle, a colour and a home building. Each character is created as a real Hermes
+  only), a vehicle, a colour and a home building (which decides its department). Up to 24
+  custom characters on top of the 7 built-in ones. Each character is created as a real Hermes
   sub-agent under the Commander, so the next mission can delegate to it. Built-in characters
   can be renamed and restyled; your own can be removed. Vehicles include Open RTS's Tank and
   a Monorail Train, both assembled from kit parts.

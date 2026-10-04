@@ -213,7 +213,7 @@ export class HermesTranslator {
     }
     const tool = TOOL_CALL_RE.exec(msg);
     if (tool) {
-      this.world.setAgent(s.agentId, { state: "working", building: buildingForTool(this.world.layout, tool[1]), detail: toolDetail(tool[1], tool[2]) });
+      this.world.setAgent(s.agentId, { state: "working", building: buildingForTool(this.world.layout, tool[1], s.agentId), detail: toolDetail(tool[1], tool[2]) });
       this.world.addTokens(200);
       return;
     }

@@ -43,6 +43,8 @@ export function parseCommand(raw: string): ClientCommand | null {
       return typeof c.id === "string" && typeof c.x === "number" && typeof c.z === "number" ? { type: c.type, id: c.id, x: c.x, z: c.z } : null;
     case "layout.reset":
       return { type: "layout.reset" };
+    case "layout.organise":
+      return { type: "layout.organise" };
     case "layout.terrain":
       return typeof c.terrain === "string" ? { type: "layout.terrain", terrain: c.terrain } : null;
     default:

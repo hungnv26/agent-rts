@@ -7,7 +7,7 @@ import { join } from "node:path";
 import { test } from "node:test";
 import { Base } from "../src/base.ts";
 import type { ServerMessage } from "../src/contract.ts";
-import { buildingForTool, cloneLayout, DEFAULT_LAYOUT, LayoutError, loadLayout, upsertAgent, upsertBuilding } from "../src/layout.ts";
+import { buildingForTool, cloneLayout, DEFAULT_LAYOUT, DEPARTMENTS, DISTRICTS, departmentOf, LayoutError, loadLayout, organiseLayout, upsertAgent, upsertBuilding } from "../src/layout.ts";
 import { FakeSource } from "../src/sources/fake.ts";
 import { HermesSource } from "../src/sources/hermes.ts";
 import { World } from "../src/world.ts";
@@ -151,4 +151,31 @@ test("up to 24 custom characters on top of the built-ins", () => {
   for (let i = 0; i < 24; i++) upsertAgent(l, { name: `Helper ${i}`, job: "Helps the team with one small task." });
   assert.equal(l.agents.filter((a) => !a.builtin).length, 24);
   assert.throws(() => upsertAgent(l, { name: "One more", job: "Helps the team with one small task." }), /At most 24/);
+});
+
+// District of a map position (3x3 grid of ~10-unit cells).
+function districtAt(x: number, z: number) {
+  const cell = (v: number) => Math.min(2, Math.max(0, Math.floor((v - 1) / 10)));
+  return DISTRICTS[cell(z)][cell(x)];
+}
+
+test("organise puts every building in its department's district, in department colours", () => {
+  const l = cloneLayout(DEFAULT_LAYOUT);
+  const caps = ["research", "code", "knowledge", "meeting"] as const;
+  for (let i = 0; i < 20; i++) upsertBuilding(l, { label: `B${i}`, capability: caps[i % 4] });
+  l.buildings.forEach((b, i) => Object.assign(b, { x: (i * 7) % 28 + 2, z: (i * 11) % 28 + 2, color: "#000000" })); // scramble
+  organiseLayout(l);
+  for (const b of l.buildings) {
+    assert.equal(districtAt(b.x, b.z), departmentOf(b.capability), `${b.label} at ${b.x},${b.z}`);
+    assert.equal(b.color, DEPARTMENTS[departmentOf(b.capability)].color);
+  }
+});
+
+test("a new building without a position drops into its district; tools prefer the agent's own building", () => {
+  const l = cloneLayout(DEFAULT_LAYOUT);
+  const b = upsertBuilding(l, { label: "Market Desk", capability: "research" });
+  assert.equal(districtAt(b.x, b.z), "research");
+  upsertAgent(l, { name: "Watcher", job: "Watches the market for changes.", skill: "web", home: b.id });
+  assert.equal(buildingForTool(l, "web_search", "watcher"), b.id);
+  assert.equal(buildingForTool(l, "web_search", "researcher"), "research_lab");
 });

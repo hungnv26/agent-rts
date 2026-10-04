@@ -47,7 +47,7 @@ settings = SubResource("Resource_settings")
 color = Color(0.4, 0.62, 0.95, 1)
 
 [node name="IsometricCamera3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 0.469472, 0.882948, 0, -0.882948, 0.469472, 16, 20, 27)
+transform = Transform3D(1, 0, 0, 0, 0.469472, 0.882948, 0, -0.882948, 0.469472, 16, 20, 26.4)
 size = 29.0
 size_min = 12
 size_max = 42

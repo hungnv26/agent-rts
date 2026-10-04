@@ -7,6 +7,7 @@ signal mission_requested(title)
 signal mission_cancel_requested
 signal approval_resolved(id, approved)
 signal agent_focus_requested(agent_id)
+signal department_focus_requested(dept)
 signal replay_requested(mission_id)
 signal replay_pause_toggled
 signal replay_speed_cycled
@@ -15,6 +16,7 @@ signal setting_changed(key, value)
 signal build_command(cmd)
 signal placement_requested(kind, payload, label_text)
 
+const Departments = preload("res://source/agent/Departments.gd")
 const ROLE_COLORS = {
 	"commander": Color(0.85, 0.93, 1.0),
 	"scout": Color(1.0, 0.88, 0.3),
@@ -43,6 +45,9 @@ var _conn_label: Label
 var _mc_button: Button
 var _roster: VBoxContainer
 var _roster_scroll: ScrollContainer
+var _dept_headers = {}  # department -> {"box": Control, "label": Label}
+var _legend_rows = {}  # department -> {"count": Label}
+var _layout = {}
 var _cards = {}
 var _input: LineEdit
 var _deploy: Button
@@ -92,6 +97,7 @@ func _ready():
 	mouse_filter = MOUSE_FILTER_IGNORE
 	_build_top_bar()
 	_build_roster()
+	_build_legend()
 	_build_command_bar()
 	_build_log()
 	_build_approval()
@@ -152,6 +158,7 @@ func set_agent(a):
 	_agents[a["id"]] = a
 	if not _cards.has(a["id"]):
 		_cards[a["id"]] = _make_card(a)
+		_regroup_roster()
 	var card = _cards[a["id"]]
 	var style = STATE_STYLE.get(a.get("state", "idle"), STATE_STYLE["idle"])
 	var st = style["text"]
@@ -373,6 +380,108 @@ func _build_roster():
 	_roster.add_theme_constant_override("separation", 8)
 	_roster_scroll.add_child(_roster)
 	_roster.add_child(_label("AGENTS", 13, MUTED))
+
+
+# Cards sit under their department's header (a character belongs to its home building's
+# department), in department order, then layout order.
+func _regroup_roster():
+	if _roster == null or _layout.is_empty():
+		return
+	var idx = 1  # after the "AGENTS" title
+	for dept in Departments.ORDER:
+		var members = []
+		for a in _layout.get("agents", []):
+			if _cards.has(a["id"]) and Departments.of_building(_layout, a.get("home", "command_centre")) == dept:
+				members.append(a["id"])
+		if not _dept_headers.has(dept):
+			_dept_headers[dept] = _make_dept_header(dept)
+		var h = _dept_headers[dept]
+		h.box.visible = not members.is_empty()
+		h.label.text = "%s  ·  %d" % [Departments.NAMES[dept].to_upper(), members.size()]
+		_roster.move_child(h.box, idx)
+		idx += 1
+		for id in members:
+			_roster.move_child(_cards[id].panel, idx)
+			idx += 1
+
+
+func _make_dept_header(dept: String) -> Dictionary:
+	var row = HBoxContainer.new()
+	row.add_theme_constant_override("separation", 8)
+	var bar = ColorRect.new()
+	bar.color = Departments.COLORS[dept]
+	bar.custom_minimum_size = Vector2(4, 14)
+	bar.size_flags_vertical = SIZE_SHRINK_CENTER
+	row.add_child(bar)
+	var l = _label("", 12, Departments.COLORS[dept].lightened(0.2))
+	row.add_child(l)
+	_roster.add_child(row)
+	return {"box": row, "label": l}
+
+
+# Top-left key to the map: each department's colour, what it does and how big it is.
+# Clicking a row moves the camera to that district.
+func _build_legend():
+	var p = _panel()
+	p.set_anchors_and_offsets_preset(PRESET_TOP_LEFT)
+	p.offset_left = 16
+	p.offset_top = 92
+	add_child(p)
+	var v = VBoxContainer.new()
+	v.add_theme_constant_override("separation", 6)
+	p.add_child(v)
+	v.add_child(_label("DEPARTMENTS", 13, MUTED))
+	for dept in Departments.ORDER:
+		var row = PanelContainer.new()
+		var sb = StyleBoxFlat.new()
+		sb.bg_color = Color(0.1, 0.13, 0.2, 0.9)
+		sb.set_corner_radius_all(6)
+		sb.content_margin_left = 8
+		sb.content_margin_right = 10
+		sb.content_margin_top = 4
+		sb.content_margin_bottom = 5
+		row.add_theme_stylebox_override("panel", sb)
+		row.mouse_default_cursor_shape = CURSOR_POINTING_HAND
+		row.tooltip_text = Departments.WORK[dept]
+		var h = HBoxContainer.new()
+		h.add_theme_constant_override("separation", 8)
+		row.add_child(h)
+		var bar = ColorRect.new()
+		bar.color = Departments.COLORS[dept]
+		bar.custom_minimum_size = Vector2(5, 30)
+		h.add_child(bar)
+		var text = VBoxContainer.new()
+		text.add_theme_constant_override("separation", 0)
+		h.add_child(text)
+		var head = HBoxContainer.new()
+		head.add_theme_constant_override("separation", 10)
+		head.add_child(_label(Departments.NAMES[dept], 15))
+		var count = _label("", 12, MUTED)
+		count.size_flags_vertical = SIZE_SHRINK_END
+		head.add_child(count)
+		text.add_child(head)
+		text.add_child(_label(Departments.WORK[dept], 12, MUTED))
+		var key = dept
+		row.gui_input.connect(
+			func(ev):
+				if ev is InputEventMouseButton and ev.pressed and ev.button_index == MOUSE_BUTTON_LEFT:
+					department_focus_requested.emit(key)
+		)
+		v.add_child(row)
+		_legend_rows[dept] = {"count": count}
+
+
+func _update_legend():
+	for dept in _legend_rows:
+		var nb = 0
+		var na = 0
+		for b in _layout.get("buildings", []):
+			if Departments.of(b["capability"]) == dept:
+				nb += 1
+		for a in _layout.get("agents", []):
+			if Departments.of_building(_layout, a.get("home", "command_centre")) == dept:
+				na += 1
+		_legend_rows[dept].count.text = "%d building%s · %d agent%s" % [nb, "" if nb == 1 else "s", na, "" if na == 1 else "s"]
 
 
 func _make_card(a):
@@ -978,7 +1087,10 @@ func set_terrain(id: String):
 
 
 func set_layout(layout: Dictionary):
+	_layout = layout
 	_build_panel.set_layout(layout)
+	_regroup_roster()
+	_update_legend()
 	_agent_colors.clear()
 	for a in layout.get("agents", []):
 		_agent_colors[a["id"]] = Color.html(a["color"])

@@ -56,9 +56,10 @@ returns the snapshot.
 
 Agents map from Hermes as follows: the orchestrator (`jarvis`) → Commander, `research` →
 Researcher, `scout` → Scout, `insights` → Analyst (reasoning only), `code` → Coder,
-`writer` → Writer (reasoning only), `reviewer` → Reviewer (reasoning only). Tools map to buildings: search tools → Research Lab,
-code and shell tools → Code Factory, notes and RAG → Knowledge Library. Otherwise each role has
-a home building.
+`writer` → Writer (reasoning only), `reviewer` → Reviewer (reasoning only). Tools map to departments: search tools →
+Research, code and shell tools → Engineering, notes and RAG → Knowledge; the agent drives to
+its own home if that building hosts the work, otherwise the nearest building of that
+department. Otherwise each role has a home building.
 
 ## Pacing
 
@@ -91,11 +92,15 @@ report**). **▶ Replay** in the report panel plays it again.
 ## Build mode (player-designed base)
 
 The adapter owns the base layout (`adapter/src/layout.ts`, saved to `.data/base.json`):
-buildings (position, model, colour, capability), the two spots, and the characters. The
+buildings (position, model, colour, capability), the two spots, and the characters. A
+building's capability is its department (Command, Research, Engineering, Knowledge, Commons),
+which sets its colour and its district: the map is a 3×3 grid of districts with 2×2 slots on
+a 5-unit lattice, and `layout.organise` moves every building into its district's slots. The
 snapshot carries it, and edits arrive as `layout.*` commands (`building.upsert/remove`,
-`spot.move`, `agent.upsert/remove`, `reset`). They are validated (map bounds, spacing,
+`spot.move`, `agent.upsert/remove`, `organise`, `terrain`, `reset`). They are validated (map bounds, spacing,
 limits, core buildings and the core team can't be deleted), applied to the world (agents
 added or removed live), saved, and synced to Hermes. Each custom character becomes a
 sub-agent `rts_<id>` under the orchestrator, with its job as the system prompt and its skill
-mapped to `web_search` or a no-tools reasoning skill. Tool calls route to the first building
-whose capability matches the tool, and the mission prompt lists the whole current team.
+mapped to `web_search` or a no-tools reasoning skill. Tool calls route to the agent's own
+building or the nearest one of the matching department, and the mission prompt lists the whole
+current team.

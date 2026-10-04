@@ -6,6 +6,7 @@ extends "res://source/match/Match.gd"
 # player's layout, owned by the adapter and edited in Build mode; this scene reconciles the
 # map with it whenever it changes.
 
+const Departments = preload("res://source/agent/Departments.gd")
 const AgentScene = preload("res://source/agent/units/Agent.tscn")
 const BuildingScene = preload("res://source/agent/units/Building.tscn")
 const WorldClientScript = preload("res://source/agent/WorldClient.gd")
@@ -90,6 +91,7 @@ func _ready():
 		func(id, approved): _client.send_command({"type": "approval.resolve", "id": id, "approved": approved})
 	)
 	_hud.agent_focus_requested.connect(_focus_agent)
+	_hud.department_focus_requested.connect(func(dept): _camera.set_position_safely(Departments.centre(dept)))
 	_hud.replay_requested.connect(_request_replay)
 	_hud.replay_pause_toggled.connect(func(): _replay.toggle_pause())
 	_hud.replay_speed_cycled.connect(func(): _replay.cycle_speed())
@@ -358,7 +360,8 @@ func _target_for(location, agent_id):
 		n = sharing.size()
 		idx = max(0, sharing.find(mine))
 	var pos = Vector3(b["x"], 0, b["z"])
-	var base_r = 3.6 if location == "command_centre" else 3.3
+	# Close in, so characters park on the street beside their building, not across it.
+	var base_r = 3.6 if location == "command_centre" else 2.7
 	return _arc_slot(pos, (center - pos).normalized(), idx, n, base_r)
 
 
@@ -385,7 +388,7 @@ func _arc_slot(pos: Vector3, facing: Vector3, i: int, n: int, base_r: float) -> 
 			var p = pos + Vector3(cos(a), 0, sin(a)) * r
 			if p.x < 1.0 or p.z < 1.0 or p.x > size - 1.0 or p.z > size - 1.0:
 				continue
-			if others.any(func(o): return o.distance_to(p) < 2.4):
+			if others.any(func(o): return o.distance_to(p) < 2.6):
 				continue
 			if free == i:
 				return p
