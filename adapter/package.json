@@ -11,7 +11,7 @@
     "start": "node src/main.ts",
     "fake": "ADAPTER_SOURCE=fake node src/main.ts",
     "demo": "ADAPTER_SOURCE=fake FAKE_LOOP=1 node src/main.ts",
-    "test": "node --test test/*.test.ts",
+    "test": "node --test --test-timeout=30000 test/*.test.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

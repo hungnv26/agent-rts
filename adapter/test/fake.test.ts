@@ -81,7 +81,7 @@ test("missions are recorded for replay, including the walk home", async () => {
   const replay = world.replay()!;
   assert.equal(replay.mission.title, "Replay me");
   assert.equal(replay.mission.status, "completed");
-  assert.equal(replay.agents.length, 4);
+  assert.equal(replay.agents.length, 7);
   const types = new Set(replay.events.map((e) => e.type));
   for (const t of ["agent.state", "task.upsert", "mission.upsert", "approval.upsert", "log"]) assert.ok(types.has(t as never), t);
   for (let i = 1; i < replay.events.length; i++) assert.ok(replay.events[i].ts >= replay.events[i - 1].ts);

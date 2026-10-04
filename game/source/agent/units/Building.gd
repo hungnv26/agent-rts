@@ -65,7 +65,7 @@ func _process(delta):
 	var flash = 0.5 + 0.5 * sin(now * 6.0) if alert else 0.0
 	_light.light_energy = activity * (1.4 + 0.5 * sin(now * 4.0)) + flash * 2.0
 	_light.light_color = Color(1.0, 0.6, 0.2) if alert else accent
-	_rim_mat.emission_energy_multiplier = 0.8 + activity * 3.5 + flash * 4.0
+	_rim_mat.emission_energy_multiplier = 0.25 + activity * 3.0 + flash * 4.0
 	_rim_mat.emission = Color(1.0, 0.55, 0.15) if alert else accent
 	_label3d.modulate = accent.lightened(0.45) if activity > 0.5 or alert else Color(0.9, 0.93, 1.0)
 	_animate_signature(delta, now)
@@ -147,15 +147,18 @@ func _build_signature():
 func _animate_signature(delta, now):
 	match building_id:
 		"research_lab":
+			# The dish only turns while someone is researching.
 			if _pivot:
-				_pivot.rotation.y += delta * (0.2 + 1.6 * activity)
+				_pivot.rotation.y += delta * 1.6 * activity
 		"command_centre":
 			_fx["ring0"].rotation.y += delta * 0.6
 			_fx["ring1"].rotation.y -= delta * 0.35
+			# The holo rings only show while a mission is running.
 			var busy = _match_busy()
 			for k in ["ring0", "ring1"]:
+				_fx[k].visible = busy > 0.0
 				var m = _fx[k].material_override as StandardMaterial3D
-				m.albedo_color.a = 0.25 + 0.35 * busy + 0.1 * sin(now * 2.0)
+				m.albedo_color.a = 0.45 + 0.1 * sin(now * 2.0)
 		"code_factory":
 			_fx["sparks"].emitting = activity > 0.4
 		"knowledge_library":

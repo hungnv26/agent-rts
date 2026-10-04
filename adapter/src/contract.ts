@@ -23,7 +23,7 @@ export type BuildingId =
 export type SpotId = "rally_point" | "repair_bay";
 export type LocationId = BuildingId | SpotId;
 
-export type AgentRole = "researcher" | "coder" | "analyst" | "reviewer";
+export type AgentRole = "commander" | "researcher" | "scout" | "analyst" | "coder" | "writer" | "reviewer";
 
 export interface Agent {
   id: string;

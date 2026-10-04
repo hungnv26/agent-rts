@@ -61,6 +61,8 @@ func start(replay: Dictionary, roster: Array, parent: Node3D, resolve_target: Ca
 		g.agent_id = r["id"]
 		g.display_name = r["name"]
 		g.role_color = r["color"]
+		g.model_path = r.get("model", g.model_path)
+		g.model_size = r.get("size", g.model_size)
 		parent.add_child(g)
 		g.setup(ui_scale)
 		var a = start_states.get(r["id"], {"id": r["id"], "state": "idle", "location": "command_centre"})

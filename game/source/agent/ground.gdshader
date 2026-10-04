@@ -1,8 +1,8 @@
 shader_type spatial;
 render_mode unshaded;
 
-// Mission-base ground: varied dark terrain, a fine grid inside the playable area, soft
-// coloured glow zones under each building, and a dusty, darker wasteland outside.
+// Plain dark ground: a fine grid inside the base, a perimeter line, and coloured zones
+// under each building that brighten while it is in use.
 
 uniform vec3 base_color : source_color = vec3(0.05, 0.07, 0.11);
 uniform vec3 dust_color : source_color = vec3(0.09, 0.08, 0.09);
@@ -57,9 +57,7 @@ void fragment() {
 	float outside = clamp(max(d.x, d.y), 0.0, 6.0) / 6.0;
 	float inside = 1.0 - smoothstep(0.0, 1.0, max(d.x, d.y));
 
-	float n = fbm(p * 0.18);
-	float fine = fbm(p * 1.3);
-	vec3 col = mix(base_color * (0.75 + 0.5 * n), dust_color * (0.6 + 0.6 * fine), outside);
+	vec3 col = mix(base_color, base_color * 0.45, outside);
 
 	// Gentle light pool towards the centre of the base.
 	float glow = 1.0 - smoothstep(0.0, length(c) * 1.15, length(p - c));

@@ -20,9 +20,12 @@ export interface MissionControlOptions {
 }
 
 const MC_ROLE: Record<string, string> = {
+  commander: "agent",
   researcher: "researcher",
-  coder: "coder",
+  scout: "researcher",
   analyst: "assistant",
+  coder: "coder",
+  writer: "assistant",
   reviewer: "reviewer",
 };
 
@@ -117,7 +120,7 @@ export class MissionControlSink {
 
   private async registerAgents() {
     const existing = new Set<string>(((await this.api("GET", "/api/agents?limit=200")).agents ?? []).map((a: any) => a.name));
-    const wanted = [{ id: COMMANDER, role: "agent" }, ...ROSTER.map((r) => ({ id: r.id, role: MC_ROLE[r.role] ?? "agent" }))];
+    const wanted = ROSTER.map((r) => ({ id: r.id, role: MC_ROLE[r.role] ?? "agent" }));
     for (const a of wanted) {
       if (existing.has(mcName(a.id))) continue;
       await this.api("POST", "/api/agents/register", {
@@ -260,13 +263,6 @@ export class MissionControlSink {
     if (this.lastAgent.get(agent.id) === key) return;
     this.lastAgent.set(agent.id, key);
     await this.api("PUT", "/api/agents", { name: mcName(agent.id), status, last_activity: activity });
-    // The Commander is busy while any agent works on the mission.
-    const busy = this.world.snapshot().agents.some((a) => MC_AGENT_STATUS[a.state] === "busy");
-    const ck = busy ? "busy" : "idle";
-    if (this.lastAgent.get(COMMANDER) !== ck) {
-      this.lastAgent.set(COMMANDER, ck);
-      await this.api("PUT", "/api/agents", { name: mcName(COMMANDER), status: ck, last_activity: busy ? "Running a mission" : "Standing by" });
-    }
   }
 
   private async reportTokens(mission: Mission) {

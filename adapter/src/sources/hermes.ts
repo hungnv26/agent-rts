@@ -122,6 +122,7 @@ export class HermesSource implements Source {
     if (approved) {
       w.upsertTask({ id: taskId, status: "done", result: "Approved" });
       w.setAgent("reviewer", { state: "complete", detail: "Report approved" });
+      w.setAgent("commander", { state: "complete", detail: "Mission closed" });
       w.updateMission({ status: "completed", result: run.draft });
       w.logLine("Report approved. Mission complete.");
     } else {
@@ -176,6 +177,7 @@ export class HermesSource implements Source {
       summary: `The report for "${run.title}" is ready. Approve it as the mission result?`,
     });
     w.setAgent("reviewer", { state: "approval", taskId, taskTitle: "Human approval of the final report", detail: "Waiting for your sign-off" });
+    w.setAgent("commander", { state: "waiting", detail: "Waiting for your approval" });
     w.logLine("The Reviewer is waiting for your approval at Human Approval.", "warn", "reviewer");
   }
 
@@ -249,10 +251,12 @@ export function missionPrompt(title: string): string {
   return [
     `Mission: ${title}`,
     "",
-    "Plan this as a short sequence (at most 4 steps) using only this team:",
-    "- Search Agent (research): searches the web and gathers sources.",
+    "Plan this as a short sequence (at most 5 steps) using only this team:",
+    "- Search Agent (research): deep research; searches the web and reads sources.",
+    "- Scout (scout): quick scan of the latest news and announcements.",
     "- Data Analyst (insights): extracts key facts, numbers and trends from what was gathered.",
     "- Code Engineer (code): only if the mission needs code, calculations or a chart.",
+    "- Writer (writer): drafts the report from the findings.",
     "- Reviewer (reviewer): always the last step; checks the result for accuracy and gaps.",
     "",
     "Finish with a concise report in Markdown: a one-line summary, key findings as bullets, and sources.",

@@ -13,6 +13,9 @@ signal replay_speed_cycled
 signal replay_stop_requested
 
 const ROLE_COLORS = {
+	"commander": Color(0.85, 0.93, 1.0),
+	"scout": Color(1.0, 0.88, 0.3),
+	"writer": Color(1.0, 0.5, 0.75),
 	"researcher": Color(0.35, 0.8, 1.0),
 	"coder": Color(1.0, 0.6, 0.25),
 	"analyst": Color(0.55, 0.95, 0.5),
@@ -579,6 +582,8 @@ static func _markdown_to_bbcode(md: String) -> String:
 
 
 func _role_color(role):
+	if ROLE_COLORS.has(role):
+		return ROLE_COLORS[role]
 	return {
 		"researcher": Color(0.35, 0.8, 1.0),
 		"coder": Color(1.0, 0.6, 0.25),

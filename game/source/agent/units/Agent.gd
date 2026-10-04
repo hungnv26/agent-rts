@@ -27,6 +27,8 @@ const STATE_STYLE = {
 var agent_id = ""
 var display_name = ""
 var role_color = Color.WHITE
+var model_path = ""  # vehicle model; replaces the default rover
+var model_size = 1.15
 # Callable(location_id: String, agent_id: String) -> Vector3
 var resolve_target: Callable
 
@@ -48,17 +50,23 @@ var _hidden = false
 
 
 func _ready():
+	if model_path != "":
+		var geometry = find_child("Geometry")
+		for child in geometry.get_children():
+			geometry.remove_child(child)
+			child.queue_free()
+		geometry.add_child(Fx.fitted(model_path, model_size))
 	await super()
 	_geometry = find_child("Geometry")
 	_geometry_base_y = _geometry.position.y
-	_name_label = _make_label(26, Vector3(0, 1.1, 0))
+	_name_label = _make_label(26, Vector3(0, 1.35, 0))
 	_name_label.offset = Vector2(0, 40)
 	_name_label.text = display_name
 	_name_label.modulate = role_color.lightened(0.25)
-	_badge = _make_label(20, Vector3(0, 1.1, 0))
+	_badge = _make_label(20, Vector3(0, 1.35, 0))
 	_thinking_ring = _make_thinking_ring()
 	_ring_mat = Fx.additive(role_color, 0.35)
-	var ring = Fx.torus(0.55, 0.7, _ring_mat, 0.03)
+	var ring = Fx.torus(0.85, 1.0, _ring_mat, 0.03)
 	ring.position.y = 0.05
 	add_child(ring)
 	_render_badge()
@@ -192,7 +200,7 @@ func _make_thinking_ring():
 	mat.albedo_color = Color(0.75, 0.62, 1.0, 0.85)
 	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	ring.material_override = mat
-	ring.position = Vector3(0, 0.9, 0)
+	ring.position = Vector3(0, 1.1, 0)
 	ring.visible = false
 	add_child(ring)
 	return ring

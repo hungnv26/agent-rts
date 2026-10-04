@@ -12,6 +12,8 @@ const MOVE_S = 0.75  # real seconds per walk, whatever the replay speed
 var agent_id = ""
 var display_name = ""
 var role_color = Color.WHITE
+var model_path = ROVER
+var model_size = 1.1
 var state = "idle"
 var location = "command_centre"
 var data = {}
@@ -26,20 +28,20 @@ var _model: Node3D
 
 func setup(ui_scale: float):
 	_holo = Fx.additive(role_color, 0.55)
-	_model = Fx.fitted(ROVER, 1.1)
+	_model = Fx.fitted(model_path, model_size)
 	for mi in _model.find_children("*", "MeshInstance3D", true, false):
 		mi.material_override = _holo
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_model.position.y = 0.15
 	add_child(_model)
-	var ring = Fx.torus(0.55, 0.7, Fx.additive(role_color, 0.45), 0.03)
+	var ring = Fx.torus(0.85, 1.0, Fx.additive(role_color, 0.45), 0.03)
 	ring.position.y = 0.05
 	add_child(ring)
 	var name_label = Fx.label(self, display_name, 26, role_color.lightened(0.3), ui_scale)
-	name_label.position = Vector3(0, 1.1, 0)
+	name_label.position = Vector3(0, 1.35, 0)
 	name_label.offset = Vector2(0, 40)
 	_badge = Fx.label(self, "", 20, Color.WHITE, ui_scale)
-	_badge.position = Vector3(0, 1.1, 0)
+	_badge.position = Vector3(0, 1.35, 0)
 
 
 func snap(agent: Dictionary, pos: Vector3):

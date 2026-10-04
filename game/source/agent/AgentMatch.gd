@@ -10,7 +10,6 @@ const BuildingScene = preload("res://source/agent/units/Building.tscn")
 const WorldClientScript = preload("res://source/agent/WorldClient.gd")
 const AgentHUDScript = preload("res://source/agent/hud/AgentHUD.gd")
 const WorldDecorScript = preload("res://source/agent/WorldDecor.gd")
-const TrainScript = preload("res://source/agent/Train.gd")
 const ReplayPlayerScript = preload("res://source/agent/replay/ReplayPlayer.gd")
 const Fx = preload("res://source/agent/Fx.gd")
 
@@ -62,13 +61,17 @@ const SPOTS = {
 	"rally_point": {"label": "Rally Point", "pos": Vector3(16, 0, 6.0), "color": Color(1.0, 0.82, 0.35)},
 	"repair_bay": {"label": "Repair Bay", "pos": Vector3(16, 0, 26.5), "color": Color(1.0, 0.35, 0.35)},
 }
+# Every unit is a real Hermes agent (the Commander is the orchestrator itself), each its
+# own vehicle.
 const ROSTER = [
-	{"id": "researcher", "name": "Researcher", "color": Color(0.35, 0.8, 1.0)},
-	{"id": "coder", "name": "Coder", "color": Color(1.0, 0.6, 0.25)},
-	{"id": "analyst", "name": "Analyst", "color": Color(0.55, 0.95, 0.5)},
-	{"id": "reviewer", "name": "Reviewer", "color": Color(0.85, 0.55, 1.0)},
+	{"id": "commander", "name": "Commander", "color": Color(0.85, 0.93, 1.0), "model": KENNEY + "craft_cargoA.glb", "size": 2.2},
+	{"id": "researcher", "name": "Researcher", "color": Color(0.35, 0.8, 1.0), "model": KENNEY + "rover.glb", "size": 1.6},
+	{"id": "scout", "name": "Scout", "color": Color(1.0, 0.88, 0.3), "model": KENNEY + "craft_speederA.glb", "size": 1.6},
+	{"id": "analyst", "name": "Analyst", "color": Color(0.55, 0.95, 0.5), "model": KENNEY + "craft_miner.glb", "size": 1.7},
+	{"id": "coder", "name": "Coder", "color": Color(1.0, 0.6, 0.25), "model": KENNEY + "craft_speederD.glb", "size": 1.6},
+	{"id": "writer", "name": "Writer", "color": Color(1.0, 0.5, 0.75), "model": KENNEY + "craft_speederB.glb", "size": 1.6},
+	{"id": "reviewer", "name": "Reviewer", "color": Color(0.85, 0.55, 1.0), "model": KENNEY + "craft_racer.glb", "size": 1.7},
 ]
-const SPOT_SLOTS = [Vector3(-1.1, 0, -0.5), Vector3(1.1, 0, -0.5), Vector3(-1.1, 0, 0.7), Vector3(1.1, 0, 0.7)]
 const RTS_ONLY_NODES = [
 	"Players/Human/StructurePlacementHandler",
 	"Players/Human/UnitActionsController",
@@ -90,7 +93,6 @@ var _mission_id = ""
 var ui_scale = 1.0
 var mission_running = false
 var _mission_status = ""
-var _train = null
 var _replay = null
 var _replaying = false
 var _replay_wait_id = ""
@@ -118,6 +120,8 @@ func _ready():
 		agent.agent_id = r["id"]
 		agent.display_name = r["name"]
 		agent.role_color = r["color"]
+		agent.model_path = r["model"]
+		agent.model_size = r["size"]
 		agent.resolve_target = _target_for
 		agent.state_applied.connect(_on_agent_state_applied)
 		agent.position = _target_for("command_centre", r["id"])
@@ -134,10 +138,6 @@ func _ready():
 	add_child(_decor)
 	_decor.build(map.find_child("Terrain").mesh.material)
 	_decor.apply_glow($WorldEnvironment, $DirectionalLight3D)
-	_train = TrainScript.new()
-	_train.ui_scale = ui_scale
-	add_child(_train)
-	_train.build()
 	_replay = ReplayPlayerScript.new()
 	add_child(_replay)
 	_hud = AgentHUDScript.new()
@@ -181,8 +181,7 @@ func _process(delta):
 	_buildings["human_approval"].alert = _replay.approval_pending if _replaying else not _pending_approvals.is_empty()
 	if _decor != null:
 		_decor.update_world(actors, delta)
-	if _train != null:
-		_train.mission_running = mission_running or _replaying
+
 
 
 # HUD and labels are designed for a 1080p-tall window; scale them up on 4K/5K screens.
@@ -209,18 +208,20 @@ func _target_for(location, agent_id):
 	for i in ROSTER.size():
 		if ROSTER[i]["id"] == agent_id:
 			idx = i
+	var n = ROSTER.size()
 	if SPOTS.has(location):
-		return SPOTS[location]["pos"] + SPOT_SLOTS[idx]
+		var a = TAU * idx / n
+		return SPOTS[location]["pos"] + Vector3(cos(a), 0, sin(a)) * 1.6
 	var b = _building_def(location)
 	if b == null:
 		return CENTER
 	if location == "command_centre":
-		var angle = PI * 0.25 + idx * PI * 0.5
-		return b["pos"] + Vector3(cos(angle), 0, sin(angle)) * 3.9
+		var angle = PI * 0.5 + TAU * idx / n
+		return b["pos"] + Vector3(cos(angle), 0, sin(angle)) * 4.1
 	var dir = (CENTER - b["pos"]).normalized()
 	var door = b["pos"] + dir * 3.3
 	var perp = Vector3(-dir.z, 0, dir.x)
-	return door + perp * (idx - 1.5) * 0.95
+	return door + perp * (idx - (n - 1) * 0.5) * 0.85
 
 
 func _building_def(id):

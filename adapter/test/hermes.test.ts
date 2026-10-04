@@ -34,12 +34,13 @@ test("translator maps a captured Hermes run onto agent states", () => {
   assert.equal(final!.failed, false);
   assert.match(final!.content, /Search Agent Output/);
 
-  assert.deepEqual(agentStates(msgs, "researcher").slice(0, 4), [
-    "thinking@command_centre",
-    "idle@command_centre",
-    "working@research_lab",
-    "complete@command_centre",
-  ]);
+  assert.deepEqual(agentStates(msgs, "researcher").slice(0, 2), ["working@research_lab", "complete@command_centre"]);
+  // The orchestrator itself is the Commander: plans, coordinates each step, writes the report.
+  const commander = agentStates(msgs, "commander");
+  assert.equal(commander[0], "thinking@command_centre");
+  assert.ok(commander.includes("working@command_centre"));
+  assert.equal(commander.at(-1), "complete@command_centre");
+  assert.match(world.getAgent("commander")!.detail ?? "", /Report delivered/);
   assert.ok(agentStates(msgs, "analyst").includes("error@repair_bay"));
   assert.ok(agentStates(msgs, "reviewer").includes("working@knowledge_library"));
   assert.equal(world.getMission()?.status, "running");

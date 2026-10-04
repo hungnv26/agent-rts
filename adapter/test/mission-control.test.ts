@@ -36,6 +36,8 @@ async function mockMissionControl() {
   };
 }
 
+let activeSink: MissionControlSink | null = null;
+
 async function until(cond: () => boolean, ms = 5000) {
   const end = Date.now() + ms;
   while (!cond()) {
@@ -59,12 +61,13 @@ test("sink mirrors a mission into Mission Control and accepts approval from it",
         void src.resolveApproval(id, ok);
       },
     });
+    activeSink = sink;
     await sink.start(world);
     await sink.flush();
 
     // Registers the commander and the roster, skipping agents that already exist.
     const registered = mc.calls.filter((c) => c.url === "/api/agents/register").map((c) => c.body.name);
-    assert.deepEqual(registered.sort(), ["rts-analyst", "rts-commander", "rts-researcher", "rts-reviewer"]);
+    assert.deepEqual(registered.sort(), ["rts-analyst", "rts-commander", "rts-researcher", "rts-reviewer", "rts-scout", "rts-writer"]);
 
     await src.createMission("Research the Australian EV market");
     await until(() => world.snapshot().approvals.some((a) => a.status === "pending"));
@@ -100,6 +103,7 @@ test("sink mirrors a mission into Mission Control and accepts approval from it",
     sink.stop();
     await src.stop();
   } finally {
+    activeSink?.stop(); // stop the SSE reconnect loop even when an assertion failed
     mc.close();
   }
 });

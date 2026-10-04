@@ -18,17 +18,24 @@ import {
   type WorldSnapshot,
 } from "./contract.ts";
 
+// Every unit on the map is a real Hermes agent; the Commander is the orchestrator itself.
 export const ROSTER: { id: string; name: string; role: AgentRole }[] = [
+  { id: "commander", name: "Commander", role: "commander" },
   { id: "researcher", name: "Researcher", role: "researcher" },
-  { id: "coder", name: "Coder", role: "coder" },
+  { id: "scout", name: "Scout", role: "scout" },
   { id: "analyst", name: "Analyst", role: "analyst" },
+  { id: "coder", name: "Coder", role: "coder" },
+  { id: "writer", name: "Writer", role: "writer" },
   { id: "reviewer", name: "Reviewer", role: "reviewer" },
 ];
 
 export const HOME_BUILDING: Record<AgentRole, BuildingId> = {
+  commander: "command_centre",
   researcher: "research_lab",
-  coder: "code_factory",
+  scout: "research_lab",
   analyst: "knowledge_library",
+  coder: "code_factory",
+  writer: "knowledge_library",
   reviewer: "knowledge_library",
 };
 

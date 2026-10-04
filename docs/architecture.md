@@ -54,8 +54,9 @@ returns the snapshot.
 | `error` | Repair Bay | A step failed |
 | `complete` / `idle` | Command Centre | Step finished / mission over |
 
-Agents map from Hermes as follows: `research` → Researcher, `insights` → Analyst (reasoning only),
-`code` → Coder, `reviewer` → Reviewer (reasoning only). Tools map to buildings: search tools → Research Lab,
+Agents map from Hermes as follows: the orchestrator (`jarvis`) → Commander, `research` →
+Researcher, `scout` → Scout, `insights` → Analyst (reasoning only), `code` → Coder,
+`writer` → Writer (reasoning only), `reviewer` → Reviewer (reasoning only). Tools map to buildings: search tools → Research Lab,
 code and shell tools → Code Factory, notes and RAG → Knowledge Library. Otherwise each role has
 a home building.
 
@@ -71,7 +72,7 @@ feed.
 
 | Agent RTS | Mission Control |
 |---|---|
-| The Commander and the 4 agents | agents `rts-commander`, `rts-researcher`, … (busy / idle / error, plus last activity) |
+| The 7 agents (Commander included) | agents `rts-commander`, `rts-researcher`, `rts-scout`, … (busy / idle / error, plus last activity) |
 | Mission | Task "Mission: …" assigned to `rts-commander`; the final report is added as a comment |
 | Step | Task assigned to the agent: `assigned → in_progress → done` (via an Aegis review) or `failed` |
 | Human Approval | Task in `review`. Approving it in Mission Control (quality review → approve) approves it in the game, and the reverse also works. |

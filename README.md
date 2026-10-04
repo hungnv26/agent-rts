@@ -2,11 +2,24 @@
 
 **A strategy-game interface for orchestrating AI agents.**
 
-Give a mission and watch a small team of AI agents carry it out on a living map. They walk
-to the Research Lab to search the web, to the Knowledge Library to analyse, and to the Code
-Factory to run code. A failed step sends an agent to the Repair Bay, and the final report
-waits at Human Approval until you sign it off. Every mission, step, agent status and cost is
-mirrored into Mission Control for the operational view.
+Give a mission and watch a team of seven AI agents carry it out on the map. Every vehicle
+is a real Hermes agent, and everything that lights up or moves reflects real work:
+
+| Agent (vehicle) | Real job in Hermes |
+|---|---|
+| Commander (cargo ship) | the orchestrator: plans, coordinates each step, writes the final synthesis |
+| Researcher (rover) | deep research: searches the web and reads sources |
+| Scout (speeder) | quick scan of the latest news |
+| Analyst (miner) | extracts facts, numbers and trends |
+| Coder (speeder) | runs code in the sandbox (calculations, charts) |
+| Writer (speeder) | drafts the report from the findings |
+| Reviewer (racer) | checks the result, then waits at Human Approval for your sign-off |
+
+Agents drive to the building that matches their tool (Research Lab, Code Factory, Knowledge
+Library). Buildings glow and animate only while someone works inside, and a data path lights
+up only while an agent uses it. A failed step sends the agent to the Repair Bay (its siren
+spins), and agents blocked on others wait at the Rally Point. Every mission, step, agent
+status and cost is mirrored into Mission Control for the operational view.
 
 ![The Reviewer waits at Human Approval](docs/screenshots/human-approval.png)
 
@@ -34,8 +47,7 @@ Type a mission into the command bar (e.g. *Research the Australian EV market*) a
 **Deploy**. When the Reviewer walks to Human Approval, click **Approve** (or click the Human
 Approval building). When the mission ends, a short replay plays (holographic agents re-run
 the mission at high speed) and then the report opens. Click **View report** to skip
-ahead, or **▶ Replay** in the report to watch it again. A monorail train laps the base and
-speeds up while a mission is running.
+ahead, or **▶ Replay** in the report to watch it again.
 
 - **Mission Control:** http://127.0.0.1:3000. The login is in `.env` (`MC_ADMIN_USER` / `MC_ADMIN_PASS`).
   Pending approvals appear as tasks in *review*; approving one there approves it in the game.

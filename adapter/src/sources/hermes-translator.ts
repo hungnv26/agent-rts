@@ -12,12 +12,17 @@ import type { World } from "../world.ts";
 //   chat_message  {role:"assistant", chat_id, content, cost_usd}  final answer
 //   logs_update   {logs:[{session_id, prompt_tokens_estimate, completion_tokens_estimate, cost_usd}]}
 
+// Hermes sub-agent id -> unit on the map. The orchestrator (jarvis) is the Commander.
 export const HERMES_TO_AGENT: Record<string, string> = {
   research: "researcher",
-  code: "coder",
+  scout: "scout",
   insights: "analyst",
+  code: "coder",
+  writer: "writer",
   reviewer: "reviewer",
 };
+
+const COMMANDER = "commander";
 
 const TOOL_BUILDINGS: [RegExp, BuildingId][] = [
   [/search|weather|rss|github|news|browse|fetch/i, "research_lab"],
@@ -36,7 +41,9 @@ export function agentForHermesId(hermesId: string, name = ""): string {
   const n = `${hermesId} ${name}`.toLowerCase();
   if (/review|qa|check/.test(n)) return "reviewer";
   if (/code|engineer|dev/.test(n)) return "coder";
-  if (/search|research|scout/.test(n)) return "researcher";
+  if (/scout|news/.test(n)) return "scout";
+  if (/search|research/.test(n)) return "researcher";
+  if (/writ|draft|report/.test(n)) return "writer";
   return "analyst";
 }
 
@@ -133,8 +140,8 @@ export class HermesTranslator {
     if (agent === "Orchestrator") {
       switch (action) {
         case "Start":
-          w.logLine("Command Centre is planning the mission.");
-          for (const id of Object.values(HERMES_TO_AGENT)) w.setAgent(id, { state: "thinking", detail: "Planning with the Commander" });
+          w.logLine("The Commander is planning the mission.", "info", COMMANDER);
+          w.setAgent(COMMANDER, { state: "thinking", detail: "Planning the mission" });
           return;
         case "Planning":
           if (t.status === "error") {
@@ -142,10 +149,8 @@ export class HermesTranslator {
             return;
           }
           w.updateMission({ status: "running" });
-          w.logLine(firstLine(msg) || "Plan ready.");
-          for (const id of Object.values(HERMES_TO_AGENT)) {
-            if (w.getAgent(id)?.state === "thinking") w.setAgent(id, { state: "idle" });
-          }
+          w.logLine(firstLine(msg) || "Plan ready.", "info", COMMANDER);
+          w.setAgent(COMMANDER, { state: "working", building: "command_centre", detail: "Coordinating the team", progress: null });
           return;
         case "Abort":
         case "Error":
@@ -164,7 +169,10 @@ export class HermesTranslator {
     if (agent === "Router" && action === "Route") {
       const m = DELEGATE_RE.exec(msg);
       if (m) return this.startStep(Number(m[1]), Number(m[2]), m[3], m[4]);
-      if (/All plan steps completed/i.test(msg)) w.logLine("All steps done. The Commander is writing the report.");
+      if (/All plan steps completed/i.test(msg)) {
+        w.logLine("All steps done. The Commander is writing the final report.", "info", COMMANDER);
+        w.setAgent(COMMANDER, { state: "working", building: "command_centre", detail: "Writing the final report" });
+      }
       return;
     }
 
@@ -184,6 +192,7 @@ export class HermesTranslator {
     const title = `Step ${i}/${n}: ${name}`;
     w.upsertTask({ id: taskId, title, agentId, status: "running" });
     w.setAgent(agentId, { state: "working", taskId, taskTitle: title, detail: `Delegated by the Commander`, progress: null });
+    w.setAgent(COMMANDER, { state: "working", building: "command_centre", detail: `Coordinating step ${i} of ${n}` });
     w.logLine(`${name} takes step ${i} of ${n}.`, "info", agentId);
     w.addTokens(400); // brief + context sent to the sub-agent (estimate; corrected by logs_update)
   }
@@ -248,6 +257,7 @@ export class HermesTranslator {
   // Close out a step that never got its own finish trace.
   finalize(): void {
     if (this.step) this.completeStep("");
+    if (this.world.getAgent(COMMANDER)?.state !== "idle") this.world.setAgent(COMMANDER, { state: "complete", detail: "Report delivered" });
   }
 
   private onFinal(frame: any): TranslatorResult {

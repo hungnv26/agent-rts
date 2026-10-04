@@ -3,7 +3,8 @@
 Mounted into the backend at backend/agentrts/plugin.py (see infra/hermes.override.yml).
 Hermes core calls these hooks at startup; nothing in the vendor tree is modified.
 
-Seeds the Reviewer and the Data Analyst ("insights") sub-agents the game expects.
+Seeds the sub-agents the game shows besides Hermes' own research and code agents:
+Scout, Data Analyst ("insights"), Writer and Reviewer.
 (Benching the seeded agents the game
 does not use is done by the adapter at connect time: core's get_retired_agent_ids hook
 deletes them and then immediately re-seeds them, so it cannot be used for that.)
@@ -32,9 +33,23 @@ INSIGHTS_PROMPT = (
 )
 
 
+SCOUT_PROMPT = (
+    "You are the Scout. Run one or two quick web searches for the latest news, announcements "
+    "and dates related to the request, and return 4-6 dated headlines with their sources."
+)
+
+WRITER_PROMPT = (
+    "You are the Writer. Using only the findings provided by the other agents, draft a clear "
+    "report in Markdown: a one-line summary, key findings as bullets with sources, and a short "
+    "conclusion. Do not invent facts."
+)
+
+
 def get_migration_agents():
     # (id, name, system_prompt, agent_type, parent_id, skills, x, y)
     return [
+        ("scout", "Scout", SCOUT_PROMPT, "agent", "jarvis", "web_search", 450, 820),
         ("insights", "Data Analyst", INSIGHTS_PROMPT, "agent", "jarvis", REASONING_ONLY, 450, 940),
+        ("writer", "Writer", WRITER_PROMPT, "agent", "jarvis", REASONING_ONLY, 450, 1000),
         ("reviewer", "Reviewer", REVIEWER_PROMPT, "agent", "jarvis", REASONING_ONLY, 450, 1060),
     ]

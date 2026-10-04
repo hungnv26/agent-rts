@@ -128,30 +128,43 @@ export class FakeSource implements Source {
     w.startMission(missionId, title);
     w.setResources({ tokenBudget: 50_000, costBudgetUsd: 0.5 });
     w.logLine(`Mission received: "${title}"`);
-    for (const id of ["researcher", "coder", "analyst", "reviewer"]) w.setAgent(id, { state: "thinking", detail: "Reading the brief" });
+    w.setAgent("commander", { state: "thinking", detail: "Planning the mission" });
     await s(2500);
 
-    w.upsertTask({ id: t("research"), title: `Gather sources: ${title}`, agentId: "researcher" });
-    w.upsertTask({ id: t("analyse"), title: "Analyse findings", agentId: "analyst" });
-    w.upsertTask({ id: t("chart"), title: "Build summary chart", agentId: "coder" });
-    w.upsertTask({ id: t("review"), title: "Review final report", agentId: "reviewer" });
+    const steps: [string, string, string][] = [
+      ["research", `Deep research: ${title}`, "researcher"],
+      ["scan", "Scan the latest news", "scout"],
+      ["analyse", "Analyse findings", "analyst"],
+      ["chart", "Build summary chart", "coder"],
+      ["draft", "Draft the report", "writer"],
+      ["review", "Review the final report", "reviewer"],
+    ];
+    for (const [id, taskTitle, agentId] of steps) w.upsertTask({ id: t(id), title: taskTitle, agentId });
     w.updateMission({ status: "running" });
-    w.logLine("Plan ready: research → analyse → chart → review.");
+    w.setAgent("commander", { state: "working", building: "command_centre", detail: "Coordinating the team", progress: null });
+    w.logLine("Plan ready: research + scan → analyse → chart → draft → review.");
 
-    w.setAgent("analyst", { state: "waiting", taskId: t("analyse"), taskTitle: "Analyse findings", detail: "Waiting for Researcher" });
+    w.setAgent("analyst", { state: "waiting", taskId: t("analyse"), taskTitle: "Analyse findings", detail: "Waiting for Researcher and Scout" });
     w.setAgent("coder", { state: "waiting", taskId: t("chart"), taskTitle: "Build summary chart", detail: "Waiting for Analyst" });
-    w.setAgent("reviewer", { state: "idle" });
 
-    w.logLine("Researcher heading to the Research Lab.", "info", "researcher");
-    await this.work("researcher", t("research"), "research_lab", "web_search: market size, sales, policy", 9000, signal);
+    // Researcher and Scout work in parallel at the Research Lab.
+    w.logLine("Researcher and Scout heading to the Research Lab.", "info", "researcher");
+    await Promise.all([
+      this.work("researcher", t("research"), "research_lab", "web_search + scraping sources", 9000, signal),
+      this.work("scout", t("scan"), "research_lab", "web_search: latest news", 5000, signal).then(() => {
+        w.upsertTask({ id: t("scan"), status: "done", result: "6 recent headlines" });
+        w.setAgent("scout", { state: "complete", detail: "6 recent headlines" });
+      }),
+    ]);
     w.upsertTask({ id: t("research"), status: "done", result: "14 sources collected" });
     w.setAgent("researcher", { state: "complete", detail: "14 sources collected" });
-    w.logLine("Researcher collected 14 sources.", "info", "researcher");
+    w.logLine("Research done: 14 sources and 6 headlines.", "info", "researcher");
 
-    await this.work("analyst", t("analyse"), "knowledge_library", "rag_search + analysis", 8000, signal);
+    await this.work("analyst", t("analyse"), "knowledge_library", "Extracting facts and trends", 7000, signal);
     w.upsertTask({ id: t("analyse"), status: "done", result: "Key trends extracted" });
     w.setAgent("analyst", { state: "complete", detail: "Key trends extracted" });
     w.setAgent("researcher", { state: "idle" });
+    w.setAgent("scout", { state: "idle" });
 
     await this.work("coder", t("chart"), "code_factory", "python_sandbox: matplotlib chart", 4000, signal);
     if (this.opts.injectError) {
@@ -164,11 +177,18 @@ export class FakeSource implements Source {
     w.setAgent("coder", { state: "complete", detail: "chart.png ready" });
     w.setAgent("analyst", { state: "idle" });
 
+    await this.work("writer", t("draft"), "knowledge_library", "Writing the report draft", 5000, signal);
+    w.upsertTask({ id: t("draft"), status: "done", result: "Draft ready" });
+    w.setAgent("writer", { state: "complete", detail: "Draft ready" });
+    w.setAgent("coder", { state: "idle" });
+
     await this.work("reviewer", t("review"), "knowledge_library", "Checking claims against sources", 5000, signal);
     const approvalId = randomUUID();
     w.upsertTask({ id: t("review"), status: "awaiting_approval" });
     w.upsertApproval({ id: approvalId, agentId: "reviewer", tool: "publish_report", summary: `Publish the final report for "${title}"?` });
     w.setAgent("reviewer", { state: "approval", detail: "Needs your sign-off to publish" });
+    w.setAgent("writer", { state: "idle" });
+    w.setAgent("commander", { state: "waiting", detail: "Waiting for your approval" });
     w.logLine("Reviewer is waiting for your approval at Human Approval.", "warn", "reviewer");
     const approved = await this.awaitApproval(approvalId, signal);
     w.upsertApproval({ id: approvalId, status: approved ? "approved" : "rejected" });
@@ -184,7 +204,7 @@ export class FakeSource implements Source {
       w.updateMission({ status: "completed", result: fakeReport(title) });
       w.logLine("Mission complete. Report ready.");
     }
-    w.setAgent("coder", { state: "idle" });
+    w.setAgent("commander", { state: "complete", detail: "Mission closed" });
     await s(3000);
     w.resetAgents();
   }
@@ -202,9 +222,9 @@ function fakeReport(title: string): string {
     "",
     "_Simulated result (fake source)._",
     "",
-    "- Researcher gathered 14 sources.",
-    "- Analyst extracted the key trends.",
-    "- Coder produced a summary chart.",
-    "- Reviewer checked the claims and a human approved publication.",
+    "- Commander planned the mission and coordinated the team.",
+    "- Researcher gathered 14 sources; Scout found 6 recent headlines.",
+    "- Analyst extracted the key trends; Coder produced a summary chart.",
+    "- Writer drafted the report; Reviewer checked it and a human approved publication.",
   ].join("\n");
 }
