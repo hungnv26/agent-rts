@@ -21,7 +21,7 @@ const LABEL_DEFAULT = 0.6
 # original layout); the default is 80%, two steps smaller again.
 const TEXT_BASE = 0.58
 const ZOOM_MIN = 12.0
-const ZOOM_MAX = 60.0
+const ZOOM_MAX = 72.0
 const ZOOM_DEFAULT = 44.0  # the whole 44-unit map, seen diagonally
 
 var fullscreen = false

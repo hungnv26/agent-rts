@@ -49,9 +49,9 @@ func _build_districts():
 		_street(Vector3(v, 0, size * 0.5), size - 2.0, false)
 		_street(Vector3(size * 0.5, 0, v), size - 2.0, true)
 		# Dirt approach roads from the gates out into the country.
-		for out in [-14.0, size + 14.0]:
-			_street(Vector3(v, 0, out), 28.0, false, false)
-			_street(Vector3(out, 0, v), 28.0, true, false)
+		for out in [-22.0, size + 22.0]:
+			_street(Vector3(v, 0, out), 44.0, false, false)
+			_street(Vector3(out, 0, v), 44.0, true, false)
 	for r in 3:
 		for c in 3:
 			var dept = Departments.DISTRICTS[r][c]

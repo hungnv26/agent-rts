@@ -40,14 +40,15 @@ func build(terrain: String):
 	var items = set["items"]
 	var placed = 0
 	var tries = 0
-	while placed < set["count"] and tries < set["count"] * 20:
+	var target = int(set["count"] * 2.2)  # the land past the base is bigger now
+	while placed < target and tries < target * 20:
 		tries += 1
-		var p = Vector3(rng.randf_range(-34, map_size + 34), 0, rng.randf_range(-34, map_size + 34))
+		var p = Vector3(rng.randf_range(-52, map_size + 52), 0, rng.randf_range(-52, map_size + 52))
 		var out = _outside(p)
 		if out < 0.8:
 			continue
 		# Denser near the base, thinning out further away.
-		if rng.randf() > clampf(1.15 - out / 30.0, 0.15, 1.0):
+		if rng.randf() > clampf(1.15 - out / 40.0, 0.25, 1.0):
 			continue
 		if set.get("water", "") != "" and _in_water(set["water"], p, 1.5):
 			continue
@@ -197,6 +198,7 @@ func _water(kind: String):
 	mat.roughness = 0.08
 	mat.rim_enabled = true
 	mat.rim = 0.4
+	mat.render_priority = -20  # before the shroud, so unexplored water darkens too
 	var mi = MeshInstance3D.new()
 	mi.material_override = mat
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF

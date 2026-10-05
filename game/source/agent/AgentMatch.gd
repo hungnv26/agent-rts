@@ -6,6 +6,8 @@ extends "res://source/match/Match.gd"
 # player's layout, owned by the adapter and edited in Build mode; this scene reconciles the
 # map with it whenever it changes.
 
+const ShroudScript = preload("res://source/agent/Shroud.gd")
+const WORLD_MARGIN = 28.0  # how far past the base the camera may travel (into the unexplored land)
 const BaseDressingScript = preload("res://source/agent/BaseDressing.gd")
 const Models = preload("res://source/agent/Models.gd")
 const CHARACTER_HEIGHT = 1.7  # animated characters are fitted by height
@@ -123,6 +125,9 @@ func _ready():
 	_hud.setting_changed.connect(_on_setting_changed)
 	display_settings.apply_render(get_viewport())
 	_camera.set_size_safely(display_settings.clamp_zoom(display_settings.zoom))
+	var shroud = ShroudScript.new()
+	_camera.add_child(shroud)
+	shroud.set_area(Vector2(Departments.MAP_SIZE, Departments.MAP_SIZE) * 0.5, Vector2(Departments.MAP_SIZE, Departments.MAP_SIZE) * 0.5 + Vector2(1.5, 1.5))
 	MatchSignals.unit_selected.connect(_on_unit_selected)
 	get_viewport().size_changed.connect(_apply_ui_scale)
 	_apply_ui_scale.call_deferred()
@@ -718,6 +723,14 @@ func _fit_view():
 	_camera.set_size_safely(display_settings.zoom)
 	_move_camera_to_initial_position()
 	display_settings.save_settings()
+
+
+# The camera may roam past the base into the (shrouded) land around it.
+func _recalculate_camera_bounding_planes(map_size: Vector2):
+	_camera.bounding_planes[0] = Plane(1, 0, 0, -WORLD_MARGIN)
+	_camera.bounding_planes[1] = Plane(-1, 0, 0, -(map_size.x + WORLD_MARGIN))
+	_camera.bounding_planes[2] = Plane(0, 0, 1, -WORLD_MARGIN)
+	_camera.bounding_planes[3] = Plane(0, 0, -1, -(map_size.y + WORLD_MARGIN))
 
 
 # Start framing the whole base (Open RTS starts on the player's units).

@@ -67,7 +67,10 @@ Grassland, cacti in the Sahara, rocks and craters on the planets). It is walled,
 where the paved streets leave and towers at the corners; each district flies a banner in its
 department's colour and holds props that suit it (cargo and trucks in Engineering, solar
 arrays and dishes in Research, parked ships in the Commons). Props are placed clear of
-buildings and their doors, and are laid out the same way every time for the same base. Everything on screen comes
+buildings and their doors, and are laid out the same way every time for the same base.
+Beyond the wall the land stretches about 28 units further each way (pan there, or zoom out
+to 72); outside the explored area around the base it lies under a dark, unexplored shroud
+whose soft, irregular edge swallows the base's corners first. Everything on screen comes
 from the live world state:
 
 - **Top bar:** tabs (Mission, Departments, Build, Settings), tokens and cost against the
