@@ -38,6 +38,7 @@ var state = "idle"
 var location = "command_centre"
 
 var _queue = []
+var _waypoints = []  # remaining legs of a multi-leg walk (e.g. out through a gate)
 var _moving = false
 var _move_started_at = -100.0
 var _arrived_at = -100.0
@@ -91,7 +92,8 @@ func push_state(agent_dict):
 func snap_to(agent_dict):
 	_queue.clear()
 	_apply(agent_dict, false)
-	global_position = resolve_target.call(location, agent_id)
+	var t = resolve_target.call(location, agent_id)
+	global_position = t[t.size() - 1] if t is Array else t
 
 
 func is_moving():
@@ -111,6 +113,8 @@ func set_hidden(hidden: bool):
 
 func _process(delta):
 	var now = Time.get_ticks_msec() / 1000.0
+	if not (action != null and action is Moving) and not _waypoints.is_empty():
+		action = Moving.new(_waypoints.pop_front())
 	var still_moving = action != null and action is Moving
 	if _moving and not still_moving:
 		_arrived_at = now
@@ -141,11 +145,30 @@ func _apply(agent_dict, walk):
 	var new_location = agent_dict.get("location", location)
 	var changed = new_location != location
 	location = new_location
-	if walk and changed and resolve_target.is_valid():
-		action = Moving.new(resolve_target.call(location, agent_id))
+	# Always evaluated, so the current research site stays in sync.
+	var new_site = resolve_target.is_valid() and _wants_new_site()
+	if (walk and changed or (new_site and not changed)) and resolve_target.is_valid():
+		var t = resolve_target.call(location, agent_id)
+		_waypoints = t.slice(1) if t is Array else []
+		action = Moving.new(t[0] if t is Array else t)
 		_moving = true
 	_render_badge()
 	state_applied.emit(self)
+
+
+# A new research task at the same building sends the agent to a new site outside; the end
+# of one brings it back inside.
+var _site_task = null
+
+
+func _wants_new_site() -> bool:
+	if not _match.has_method("expedition_site"):
+		return false
+	var site = _match.expedition_site(location, agent_id)
+	var key = str(site) if site != null else null
+	var changed = key != _site_task  # a new site, or the expedition is over (walk back)
+	_site_task = key
+	return changed
 
 
 func _render_badge():

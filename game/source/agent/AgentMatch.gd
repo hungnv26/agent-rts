@@ -52,6 +52,8 @@ var _first_snapshot = true
 var _decor = null
 var _scenery = null
 var _dressing = null
+var _shroud = null
+var _reveal_tick = 0.0
 var _pending_approvals = {}
 var _mission_id = ""
 var ui_scale = 1.0  # menus / HUD
@@ -125,9 +127,9 @@ func _ready():
 	_hud.setting_changed.connect(_on_setting_changed)
 	display_settings.apply_render(get_viewport())
 	_camera.set_size_safely(display_settings.clamp_zoom(display_settings.zoom))
-	var shroud = ShroudScript.new()
-	_camera.add_child(shroud)
-	shroud.set_area(Vector2(Departments.MAP_SIZE, Departments.MAP_SIZE) * 0.5, Vector2(Departments.MAP_SIZE, Departments.MAP_SIZE) * 0.5 + Vector2(1.5, 1.5))
+	_shroud = ShroudScript.new()
+	_camera.add_child(_shroud)
+	_shroud.set_area(Vector2(Departments.MAP_SIZE, Departments.MAP_SIZE) * 0.5, Vector2(Departments.MAP_SIZE, Departments.MAP_SIZE) * 0.5 + Vector2(1.5, 1.5))
 	MatchSignals.unit_selected.connect(_on_unit_selected)
 	get_viewport().size_changed.connect(_apply_ui_scale)
 	_apply_ui_scale.call_deferred()
@@ -153,6 +155,7 @@ func _process(delta):
 		)
 	if _decor != null:
 		_decor.update_world(actors, delta)
+	_reveal_explorers(delta)
 	_update_placement_preview()
 	# Remember mouse-wheel zoom too (saved at most once a second).
 	if absf(_camera.size - display_settings.zoom) > 0.01:
@@ -237,7 +240,7 @@ func _make_agent(def: Dictionary):
 	agent.model_path = _model_path(def["model"])
 	agent.model_size = _vehicle_size(def["model"])
 	agent.model_height = CHARACTER_HEIGHT if Models.is_character(def["model"]) else 0.0
-	agent.resolve_target = _target_for
+	agent.resolve_target = _route_for
 	agent.state_applied.connect(_on_agent_state_applied)
 	agent.set_meta("sig", _sig(def, ["name", "model", "color"]))
 	return agent
@@ -723,6 +726,95 @@ func _fit_view():
 	_camera.set_size_safely(display_settings.zoom)
 	_move_camera_to_initial_position()
 	display_settings.save_settings()
+
+
+# ---------------------------------------------------------------- expeditions
+
+# Web research is an expedition: an agent searching the web at a Research building walks
+# out through a gate to a site in the wild (one per task, so new searches explore new
+# land), and uncovers the shroud wherever it goes.
+const RESEARCH_TOOLS = ["search", "browse", "fetch", "news", "rss", "scrap"]
+
+
+func expedition_site(location, agent_id) -> Variant:
+	var agent = _agents.get(agent_id)
+	if agent == null or not is_instance_valid(agent):
+		return null
+	var d = agent.data
+	if d.get("state", "") != "working":
+		return null
+	var b = _bdef(location)
+	if b == null or b.get("capability", "") != "research":
+		return null
+	var detail = str(d.get("detail", "")).to_lower()
+	if not RESEARCH_TOOLS.any(func(t): return detail.contains(t)):
+		return null
+	var seed = abs(hash("%s|%s" % [agent_id, d.get("taskId", detail)]))
+	var gates = _gates()
+	var g = gates[seed % gates.size()]
+	var out_dir = (g["outside"] - g["inside"]).normalized()
+	var side = Vector3(-out_dir.z, 0, out_dir.x)
+	var site = g["outside"] + out_dir * (7.0 + (seed >> 4) % 15) + side * float(((seed >> 9) % 25) - 12)
+	var lim = Departments.MAP_SIZE + WORLD_MARGIN - 3.0
+	site.x = clampf(site.x, -WORLD_MARGIN + 3.0, lim)
+	site.z = clampf(site.z, -WORLD_MARGIN + 3.0, lim)
+	if _scenery != null and _scenery.has_method("is_water") and _scenery.is_water(site):
+		site += side * 18.0
+	return site
+
+
+func _gates() -> Array:
+	var size = Departments.MAP_SIZE
+	var out = []
+	for v in Departments.STREETS:
+		out.append({"inside": Vector3(v, 0, 2.0), "outside": Vector3(v, 0, -3.0)})
+		out.append({"inside": Vector3(v, 0, size - 2.0), "outside": Vector3(v, 0, size + 3.0)})
+		out.append({"inside": Vector3(2.0, 0, v), "outside": Vector3(-3.0, 0, v)})
+		out.append({"inside": Vector3(size - 2.0, 0, v), "outside": Vector3(size + 3.0, 0, v)})
+	return out
+
+
+static func _outside_base(p: Vector3) -> bool:
+	var size = Departments.MAP_SIZE
+	return p.x < -0.3 or p.z < -0.3 or p.x > size + 0.3 or p.z > size + 0.3
+
+
+func _nearest_gate(p: Vector3) -> Dictionary:
+	var best = null
+	for g in _gates():
+		if best == null or g["outside"].distance_to(p) < best["outside"].distance_to(p):
+			best = g
+	return best
+
+
+# Where an agent walks for a location: the expedition site or the usual slot, with the
+# legs through a gate when the walk crosses the wall.
+func _route_for(location, agent_id) -> Variant:
+	var site = expedition_site(location, agent_id)
+	var final = site if site != null else _target_for(location, agent_id)
+	var agent = _agents.get(agent_id)
+	if agent == null or not is_instance_valid(agent) or not agent.is_inside_tree():
+		return final
+	var from = agent.global_position
+	var legs = []
+	if _outside_base(from) and not _outside_base(final):
+		var g = _nearest_gate(from)
+		legs = [g["outside"], g["inside"]]
+	elif not _outside_base(from) and _outside_base(final):
+		var g = _nearest_gate(final)
+		legs = [g["inside"], g["outside"]]
+	legs.append(final)
+	return legs if legs.size() > 1 else final
+
+
+func _reveal_explorers(delta):
+	_reveal_tick += delta
+	if _reveal_tick < 0.25 or _shroud == null:
+		return
+	_reveal_tick = 0.0
+	for agent in _agents.values():
+		if is_instance_valid(agent) and agent.is_inside_tree() and _outside_base(agent.global_position):
+			_shroud.reveal(agent.global_position)
 
 
 # The camera may roam past the base into the (shrouded) land around it.

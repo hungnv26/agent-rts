@@ -40,11 +40,12 @@ func _setup_static_obstacles():
 			Constants.Match.Navigation.Domain.TERRAIN: 0,
 		}[domain]
 		NavigationServer3D.obstacle_set_position(obstacle, Vector3(0, obstacle_y, 0))
+		var m = _match.map.get_meta("navigation_margin", 0.0)  # Agent RTS: walkable land around the map
 		var obstacle_vertices = [
-			Vector3(0, 0, 0),
-			Vector3(0, 0, _match.map.size.y),
-			Vector3(_match.map.size.x, 0, _match.map.size.y),
-			Vector3(_match.map.size.x, 0, 0),
+			Vector3(-m, 0, -m),
+			Vector3(-m, 0, _match.map.size.y + m),
+			Vector3(_match.map.size.x + m, 0, _match.map.size.y + m),
+			Vector3(_match.map.size.x + m, 0, -m),
 		]
 		NavigationServer3D.obstacle_set_vertices(obstacle, obstacle_vertices)
 		NavigationServer3D.obstacle_set_avoidance_enabled(obstacle, true)

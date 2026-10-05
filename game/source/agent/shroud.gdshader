@@ -8,6 +8,8 @@ render_mode unshaded, depth_draw_never, depth_test_disabled, cull_disabled, shad
 
 uniform sampler2D depth_tex : hint_depth_texture, filter_nearest;
 uniform sampler2D noise_tex : repeat_enable, filter_linear;
+uniform sampler2D reveal_tex : filter_linear;  // land explored by agents (white = explored)
+uniform vec3 reveal_rect = vec3(-30.0, -30.0, 104.0);  // world min x, min z, size
 uniform vec2 centre = vec2(22.0, 22.0);
 uniform vec2 half_size = vec2(26.0, 26.0);  // explored area (base plus a margin), before rounding
 uniform float corner = 20.0;  // rounding of the explored square: the base's corners fade out
@@ -35,6 +37,9 @@ void fragment() {
 	float d = rounded_box(world.xz - centre, half_size, corner);
 	d += (n - 0.5) * 10.0 + (n2 - 0.5) * 3.0;
 	float fog = smoothstep(0.0, edge, d) * strength;
+	vec2 ruv = (world.xz - reveal_rect.xy) / reveal_rect.z;
+	float explored = texture(reveal_tex, ruv).r;
+	fog *= 1.0 - smoothstep(0.2, 0.85, explored + (n2 - 0.5) * 0.35);
 	ALBEDO = mix(shade, mist, n * 0.6);
 	ALPHA = fog;
 }

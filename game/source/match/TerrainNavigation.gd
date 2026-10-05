@@ -41,8 +41,12 @@ func bake(map):
 	)
 	# setting custom AABB for baking so that height of dynamic AABB is always the same
 	# - without such setting, re-baking may yield different results depending on geometry height
+	# Agent RTS: the map may declare land around it that units can walk on too.
+	var margin = map.get_meta("navigation_margin", 0.0)
+	# (The land around sits a hair below 0, hence the lower floor when there is a margin.)
+	var floor_y = -0.5 if margin > 0.0 else 0.0
 	_navigation_region.navigation_mesh.filter_baking_aabb = AABB(
-		Vector3.ZERO, Vector3(map.size.x, 5.0, map.size.y)
+		Vector3(-margin, floor_y, -margin), Vector3(map.size.x + 2.0 * margin, 5.0 - floor_y, map.size.y + 2.0 * margin)
 	)
 	NavigationServer3D.parse_source_geometry_data(
 		_navigation_region.navigation_mesh, _map_geometry, get_tree().root

@@ -70,7 +70,12 @@ arrays and dishes in Research, parked ships in the Commons). Props are placed cl
 buildings and their doors, and are laid out the same way every time for the same base.
 Beyond the wall the land stretches about 28 units further each way (pan there, or zoom out
 to 72); outside the explored area around the base it lies under a dark, unexplored shroud
-whose soft, irregular edge swallows the base's corners first. Everything on screen comes
+whose soft, irregular edge swallows the base's corners first. Web research is exploration:
+an agent searching the web at a Research building walks out through the nearest gate to a
+site in the wild (a new site for each task), works there, and walks back; the land it
+passes is uncovered for good. Explored land is saved in
+`~/Library/Application Support/Godot/app_userdata/Agent RTS/agent_rts_explored.png`
+(delete it to cover the world again). Everything on screen comes
 from the live world state:
 
 - **Top bar:** tabs (Mission, Departments, Build, Settings), tokens and cost against the

@@ -74,8 +74,9 @@ func build(terrain: String):
 	for kind in placements:
 		for part in _parts(kind, foliage, rock_tint):
 			_multimesh(part[0], part[1], placements[kind], part[2] if part.size() > 2 else Transform3D.IDENTITY)
-	if set.get("water", "") != "":
-		_water(set["water"])
+	_water_kind = set.get("water", "")
+	if _water_kind != "":
+		_water(_water_kind)
 
 
 # How far outside the map a point is (0 inside).
@@ -179,6 +180,13 @@ func _multimesh(mesh: Mesh, mat: Material, transforms: Array, local: Transform3D
 		mmi.material_override = mat
 	mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 	add_child(mmi)
+
+
+var _water_kind = ""
+
+
+func is_water(p: Vector3) -> bool:
+	return _water_kind != "" and _in_water(_water_kind, p, 2.0)
 
 
 func _in_water(kind: String, p: Vector3, margin: float) -> bool:
