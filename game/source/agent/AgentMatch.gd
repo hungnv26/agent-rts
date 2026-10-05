@@ -891,6 +891,8 @@ func _setup_capture():
 			get_tree().create_timer(3.0).timeout.connect(_hud.select_building.bind(arg.substr(18)))
 		elif arg == "--open-settings":
 			_hud._toggle_settings.call_deferred()
+		elif arg.begins_with("--tab="):
+			_hud._switch_tab.call_deferred(arg.substr(6))
 		elif arg == "--open-build":
 			_hud.toggle_build.call_deferred()
 		elif arg == "--open-build-terrain":
