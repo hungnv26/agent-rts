@@ -159,16 +159,17 @@ function districtCentre(dept: Department): { x: number; z: number } {
   return { x: cells.reduce((a, b) => a + b.x, 0) / cells.length, z: cells.reduce((a, b) => a + b.z, 0) / cells.length };
 }
 
-function slotFree(slot: { x: number; z: number }, buildings: BuildingDef[], ignore?: BuildingDef): boolean {
+function slotFree(slot: { x: number; z: number }, buildings: BuildingDef[], ignore?: BuildingDef, spots: SpotDef[] = []): boolean {
+  if (spots.some((s) => Math.hypot(s.x - slot.x, s.z - slot.z) < 4.5)) return false;
   return buildings.every((b) => b === ignore || Math.hypot(b.x - slot.x, b.z - slot.z) >= BUILDING_SPACING);
 }
 
 // Next free slot in the department's district; if that's full, the free slot nearest to it.
 export function freeSlot(l: BaseLayout, dept: Department, ignore?: BuildingDef): { x: number; z: number } | null {
-  const own = SLOTS.find((s) => s.dept === dept && slotFree(s, l.buildings, ignore));
+  const own = SLOTS.find((s) => s.dept === dept && slotFree(s, l.buildings, ignore, l.spots));
   if (own) return { x: own.x, z: own.z };
   const c = districtCentre(dept);
-  const rest = SLOTS.filter((s) => slotFree(s, l.buildings, ignore)).sort((a, b) => Math.hypot(a.x - c.x, a.z - c.z) - Math.hypot(b.x - c.x, b.z - c.z));
+  const rest = SLOTS.filter((s) => slotFree(s, l.buildings, ignore, l.spots)).sort((a, b) => Math.hypot(a.x - c.x, a.z - c.z) - Math.hypot(b.x - c.x, b.z - c.z));
   return rest[0] ? { x: rest[0].x, z: rest[0].z } : null;
 }
 
@@ -340,7 +341,10 @@ export function upsertBuilding(l: BaseLayout, input: Record<string, unknown>): B
     Object.assign(existing, { label: label || existing.label, model, color, capability, x, z });
     return existing;
   }
-  const id = uniqueId(slug(label), new Set(l.buildings.map((b) => b.id)));
+  // Spot ids and the core buildings' ids are taken too (a building named "Rally Point"
+  // must not become rally_point, or agents sent there would walk to the spot).
+  const taken = new Set([...l.buildings.map((b) => b.id), ...l.spots.map((s) => s.id), "command_centre", "human_approval"]);
+  const id = uniqueId(slug(label), taken);
   const b: BuildingDef = { id, label, x, z, model, color, capability };
   l.buildings.push(b);
   return b;

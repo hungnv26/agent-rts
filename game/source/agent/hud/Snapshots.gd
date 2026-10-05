@@ -61,6 +61,7 @@ func _pump():
 		var img = vp.get_texture().get_image()
 		vp.queue_free()
 		if img == null:
+			_waiting.erase(job["key"])  # let a later request try again
 			continue
 		img.generate_mipmaps()
 		var tex = ImageTexture.create_from_image(img)

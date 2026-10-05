@@ -5,28 +5,6 @@ extends RefCounted
 const LABEL_GROUP = "agent_rts_labels"
 
 
-static func emissive(color: Color, energy := 2.0, alpha := 1.0) -> StandardMaterial3D:
-	var m = StandardMaterial3D.new()
-	m.albedo_color = Color(color, alpha)
-	m.emission_enabled = true
-	m.emission = color
-	m.emission_energy_multiplier = energy
-	if alpha < 1.0:
-		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	return m
-
-
-static func additive(color: Color, alpha := 0.5) -> StandardMaterial3D:
-	var m = StandardMaterial3D.new()
-	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	m.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
-	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	m.cull_mode = BaseMaterial3D.CULL_DISABLED
-	m.no_depth_test = false
-	m.albedo_color = Color(color, alpha)
-	return m
-
-
 static func metal(color: Color, metallic := 0.7, roughness := 0.35) -> StandardMaterial3D:
 	var m = StandardMaterial3D.new()
 	m.albedo_color = color

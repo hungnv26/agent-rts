@@ -24,8 +24,6 @@ const Fx = preload("res://source/agent/Fx.gd")
 const SettingsScript = preload("res://source/agent/Settings.gd")
 const Terrains = preload("res://source/agent/Terrains.gd")
 
-const KENNEY = "res://assets/models/kenney-spacekit/"
-const COMMAND_CENTRE_SCENE = "res://source/match/units/structure-geometries/CommandCenter.tscn"
 const SPOT_COLORS = {"rally_point": Color(1.0, 0.82, 0.35), "repair_bay": Color(1.0, 0.35, 0.35)}
 # Only the Command Centre exists before the adapter sends the layout (the match needs one
 # unit to start); everything else comes from the layout.
@@ -67,7 +65,7 @@ var _replaying = false
 var _replay_wait_id = ""
 var _placement = null  # {kind, payload, label, preview} while placing in Build mode
 var _terrain_id = ""
-var _env_original = null  # Mars keeps the original Open RTS environment exactly
+var _env_duplicated = false  # the scene's Environment is copied once, then tuned per terrain
 
 
 func _ready():
@@ -153,8 +151,6 @@ func _process(delta):
 		_buildings["human_approval"].alert = (
 			_replay.approval_pending if _replaying else not _pending_approvals.is_empty()
 		)
-	if _decor != null:
-		_decor.update_world(actors, delta)
 	_reveal_explorers(delta)
 	_update_placement_preview()
 	# Remember mouse-wheel zoom too (saved at most once a second).
@@ -292,13 +288,27 @@ func _apply_layout(layout: Dictionary):
 		var at = pos if pos != null else _target_for(def.get("home", "command_centre"), def["id"])
 		_setup_and_spawn_unit(agent, Transform3D(Basis(), at), human, false)
 		_agents[def["id"]] = agent
+		if _replaying:
+			agent.set_hidden(true)
 		if not data.is_empty():
+			agent.location = ""  # so the carried-over state always walks it to its place
 			agent.push_state(data)
 	for id in _agents.keys():
 		if not agents_wanted.has(id):
 			_remove_agent(id)
 	_rebuild_decor()
 	_hud.set_layout(layout)
+	_repark_agents()
+
+
+# After a layout edit (a building moved, a home changed, characters added or removed),
+# characters standing still walk to wherever their place is now.
+func _repark_agents():
+	for agent in _agents.values():
+		if not is_instance_valid(agent) or not agent.is_inside_tree() or agent.is_moving():
+			continue
+		if agent.has_method("repark"):
+			agent.repark()
 
 
 # Ground pattern, road colour and light for a terrain theme (Terrains.gd).
@@ -313,8 +323,8 @@ func _apply_terrain(id: String):
 		Terrains.apply_to_material(mat, id)
 	var env_node = $WorldEnvironment
 	var sun = $DirectionalLight3D
-	if _env_original == null:
-		_env_original = {"env": env_node.environment, "sun_color": sun.light_color, "sun_energy": sun.light_energy}
+	if not _env_duplicated:
+		_env_duplicated = true
 		env_node.environment = env_node.environment.duplicate()
 	var env = env_node.environment
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
@@ -344,6 +354,9 @@ func _apply_terrain(id: String):
 
 
 func _remove_agent(id):
+	for b in _buildings.values():
+		if is_instance_valid(b):
+			b.set_occupant(id, false)
 	if _agents.has(id):
 		if is_instance_valid(_agents[id]):
 			_agents[id].queue_free()
@@ -394,10 +407,15 @@ func _target_for(location, agent_id):
 	# At its home a character takes a slot among the characters sharing that home, so a
 	# crowded home stays compact; elsewhere slots follow roster order.
 	var mine = roster[idx] if idx < roster.size() else {}
+	var residents = roster.filter(func(d): return d.get("home", "command_centre") == location)
 	if mine.get("home", "command_centre") == location:
-		var sharing = roster.filter(func(d): return d.get("home", "command_centre") == location)
-		n = sharing.size()
-		idx = max(0, sharing.find(mine))
+		n = residents.size()
+		idx = max(0, residents.find(mine))
+	else:
+		# Visitors queue after the residents, so nobody stands on a resident's spot.
+		var visitors = roster.filter(func(d): return d.get("home", "command_centre") != location)
+		idx = residents.size() + max(0, visitors.find(mine))
+		n = roster.size()
 	var pos = Vector3(b["x"], 0, b["z"])
 	# Characters stand right in front of the building (the side facing the camera), so
 	# they're visible and stay inside their own district.
@@ -405,11 +423,12 @@ func _target_for(location, agent_id):
 	return _arc_slot(pos, view_back(), idx, n, base_r)
 
 
-# Slot `i` on rows of arcs around a building, filling the `facing` side first;
+# Slot `i` on rows of arcs in front of a building, filling the `facing` side first;
 # each further row is one unit out. Slots inside other buildings or off the map are skipped.
 func _arc_slot(pos: Vector3, facing: Vector3, i: int, n: int, base_r: float) -> Vector3:
 	const GAP = 1.05
-	var size = float(_layout.get("size", Departments.MAP_SIZE))
+	const HALF_ARC = PI * 0.6  # rows cover the front of the building, not its back
+	var size = float(_layout.get("size", 32))
 	var others = []
 	for b in _layout.get("buildings", []):
 		var bp = Vector3(b["x"], 0, b["z"])
@@ -417,10 +436,8 @@ func _arc_slot(pos: Vector3, facing: Vector3, i: int, n: int, base_r: float) -> 
 			others.append(bp)
 	var r = base_r
 	var free = 0
-	var placed = 0
-	for ring in 12:
-		var cap = int(TAU * r / GAP)
-		var m = min(cap, max(1, n - placed))
+	for ring in 16:
+		var cap = int(2.0 * HALF_ARC * r / GAP) + 1
 		# Grow the arc symmetrically from the front: 0, +1, -1, +2, -2 ...
 		for k in cap:
 			var j = (k + 1) / 2 * (1 if k % 2 == 1 else -1)
@@ -433,7 +450,6 @@ func _arc_slot(pos: Vector3, facing: Vector3, i: int, n: int, base_r: float) -> 
 			if free == i:
 				return p
 			free += 1
-		placed += m
 		r += 1.0
 	return pos
 
@@ -462,6 +478,7 @@ func _cancel_placement():
 		_placement["preview"].queue_free()
 		_placement = null
 		_hud.show_hint("")
+		_hud.form_failed()  # nothing was sent: keep the form and what was typed
 
 
 func _ground_point():
@@ -594,9 +611,10 @@ func _on_message(msg):
 				if ap.get("status") == "pending":
 					_pending_approvals[ap["id"]] = true
 			var m = world.get("mission")
+			mission_running = m != null and m.get("status") in ["planning", "running"]
 			if m != null:
 				_mission_id = m.get("id", "")
-				mission_running = m.get("status") in ["planning", "running"]
+				_mission_status = m.get("status", "")  # a re-sent finished mission isn't "finished now"
 		"layout.update":
 			_apply_layout(msg["layout"])
 		"agent.removed":
@@ -741,26 +759,40 @@ func expedition_site(location, agent_id) -> Variant:
 	if agent == null or not is_instance_valid(agent):
 		return null
 	var d = agent.data
-	if d.get("state", "") != "working":
-		return null
+	var state = d.get("state", "")
 	var b = _bdef(location)
-	if b == null or b.get("capability", "") != "research":
+	if b == null or b.get("capability", "") != "research" or state in ["idle", "complete", "error", "approval", "waiting"]:
 		return null
+	var task = d.get("taskId")
 	var detail = str(d.get("detail", "")).to_lower()
-	if not RESEARCH_TOOLS.any(func(t): return detail.contains(t)):
-		return null
-	var seed = abs(hash("%s|%s" % [agent_id, d.get("taskId", detail)]))
+	# Starts with a web tool call; then lasts for the whole task (thinking between searches
+	# happens out in the field too), so agents don't walk in and out between calls.
+	var key = "%s|%s|%s" % [agent_id, task if task != null else detail, location]
+	if not _expeditions.has(key):
+		if state != "working" or not RESEARCH_TOOLS.any(func(t): return detail.contains(t)):
+			return null
+		_expeditions[key] = _pick_site(abs(hash(key)))
+	return _expeditions[key]
+
+
+var _expeditions = {}  # agent|task|location -> site
+
+
+func _pick_site(h: int) -> Vector3:
 	var gates = _gates()
-	var g = gates[seed % gates.size()]
-	var out_dir = (g["outside"] - g["inside"]).normalized()
-	var side = Vector3(-out_dir.z, 0, out_dir.x)
-	var site = g["outside"] + out_dir * (7.0 + (seed >> 4) % 15) + side * float(((seed >> 9) % 25) - 12)
-	var lim = Departments.MAP_SIZE + WORLD_MARGIN - 3.0
-	site.x = clampf(site.x, -WORLD_MARGIN + 3.0, lim)
-	site.z = clampf(site.z, -WORLD_MARGIN + 3.0, lim)
-	if _scenery != null and _scenery.has_method("is_water") and _scenery.is_water(site):
-		site += side * 18.0
-	return site
+	var lim_lo = -WORLD_MARGIN + 3.5
+	var lim_hi = Departments.MAP_SIZE + WORLD_MARGIN - 3.5
+	for attempt in gates.size():
+		var g = gates[(h + attempt) % gates.size()]
+		var out_dir = (g["outside"] - g["inside"]).normalized()
+		var side = Vector3(-out_dir.z, 0, out_dir.x)
+		for push in [0.0, 1.0, -1.0]:
+			var site = g["outside"] + out_dir * (7.0 + (h >> 4) % 15) + side * (float(((h >> 9) % 25) - 12) + push * 14.0)
+			site.x = clampf(site.x, lim_lo, lim_hi)
+			site.z = clampf(site.z, lim_lo, lim_hi)
+			if _scenery == null or not _scenery.has_method("is_water") or not _scenery.is_water(site):
+				return site
+	return _gates()[h % 8]["outside"]  # everything is water: stop just outside a gate
 
 
 func _gates() -> Array:

@@ -33,14 +33,14 @@ var map_size = 44.0
 func build(terrain: String):
 	for c in get_children():
 		c.queue_free()
-	var set = SETS.get(terrain, SETS["mars"])
+	var spec = SETS.get(terrain, SETS["mars"])
 	var rng = RandomNumberGenerator.new()
 	rng.seed = hash(terrain)
 	var placements = {}  # kind -> [Transform3D]
-	var items = set["items"]
+	var items = spec["items"]
 	var placed = 0
 	var tries = 0
-	var target = int(set["count"] * 2.2)  # the land past the base is bigger now
+	var target = int(spec["count"] * 2.2)  # the land past the base is bigger now
 	while placed < target and tries < target * 20:
 		tries += 1
 		var p = Vector3(rng.randf_range(-52, map_size + 52), 0, rng.randf_range(-52, map_size + 52))
@@ -50,7 +50,7 @@ func build(terrain: String):
 		# Denser near the base, thinning out further away.
 		if rng.randf() > clampf(1.15 - out / 40.0, 0.25, 1.0):
 			continue
-		if set.get("water", "") != "" and _in_water(set["water"], p, 1.5):
+		if spec.get("water", "") != "" and _in_water(spec["water"], p, 1.5):
 			continue
 		if _on_approach_road(p):
 			continue
@@ -69,12 +69,12 @@ func build(terrain: String):
 			placements[kind] = []
 		placements[kind].append(t)
 		placed += 1
-	var foliage = set.get("foliage", [Color(0.3, 0.5, 0.2)])
+	var foliage = spec.get("foliage", [Color(0.3, 0.5, 0.2)])
 	var rock_tint = ROCK_TINT.get(terrain, Color(0.6, 0.6, 0.6))
 	for kind in placements:
 		for part in _parts(kind, foliage, rock_tint):
 			_multimesh(part[0], part[1], placements[kind], part[2] if part.size() > 2 else Transform3D.IDENTITY)
-	_water_kind = set.get("water", "")
+	_water_kind = spec.get("water", "")
 	if _water_kind != "":
 		_water(_water_kind)
 

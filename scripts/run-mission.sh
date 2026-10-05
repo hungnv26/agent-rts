@@ -9,7 +9,7 @@ LIMIT=${LIMIT:-900}
 APPROVE_DELAY=${APPROVE_DELAY:-0} # seconds to leave the approval pending (demo/screenshots)
 
 body=$(python3 -c 'import json,sys; print(json.dumps({"type":"mission.create","title":sys.argv[1]}))' "$TITLE")
-curl -sf -X POST "$ADAPTER/command" -d "$body" >/dev/null
+curl -sf -X POST "$ADAPTER/command" -H "content-type: application/json" -d "$body" >/dev/null
 start=$(date +%s)
 while true; do
   line=$(curl -sf "$ADAPTER/state" | python3 -c '
@@ -24,7 +24,7 @@ print(m.get("status", "none"), pending[0] if pending else "-", agents)')
   if [[ "$pending" != "-" ]]; then
     sleep "$APPROVE_DELAY"
     approved=true; [[ "$DECISION" == "--reject" ]] && approved=false
-    curl -sf -X POST "$ADAPTER/command" -d "{\"type\":\"approval.resolve\",\"id\":\"$pending\",\"approved\":$approved}" >/dev/null
+    curl -sf -X POST "$ADAPTER/command" -H "content-type: application/json" -d "{\"type\":\"approval.resolve\",\"id\":\"$pending\",\"approved\":$approved}" >/dev/null
     echo "approval resolved: approved=$approved"
   fi
   case "$status" in completed|failed|cancelled) break ;; esac

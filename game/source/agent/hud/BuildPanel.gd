@@ -17,10 +17,6 @@ const SUGGESTED = {
 	"knowledge": ["basemodule_A", "basemodule_B", "basemodule_C", "basemodule_D", "basemodule_E", "HouseCylinder", "HouseLong", "hangar_roundGlass", "hangar_roundA"],
 	"meeting": ["landingpad_large", "structure_low", "containers_A", "BaseLarge", "HouseSingle", "structure_detailed", "gate_simple", "gate_complex", "AntiGroundTurret"],
 }
-const CAPABILITY_TEXT = {
-	"command": "Command", "research": "Web research", "code": "Code & data", "knowledge": "Knowledge & notes",
-	"approval": "Human approval", "meeting": "Meeting point",
-}
 const SKILLS = [["Web research", "web"], ["Thinking only", "reasoning"]]
 const SKILL_TEXT = {"web": "Web research", "reasoning": "Thinking", "code": "Code sandbox", "orchestrator": "Orchestrator"}
 const BUILDING_MODELS = [

@@ -99,10 +99,6 @@ func set_occupant(agent_id, working, display_name = ""):
 		_render_status()
 
 
-func is_busy():
-	return not _occupants.is_empty()
-
-
 func _render_status():
 	if _status3d == null:
 		return

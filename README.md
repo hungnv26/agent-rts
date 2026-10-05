@@ -11,7 +11,7 @@ is a real Hermes agent, and everything that lights up or moves reflects real wor
 | Researcher (rover) | deep research: searches the web and reads sources |
 | Scout (speeder) | quick scan of the latest news |
 | Analyst (miner) | extracts facts, numbers and trends |
-| Coder (speeder) | runs code in the sandbox (calculations, charts) |
+| Coder (speeder) | runs code in the isolated sandbox container (calculations, charts) |
 | Writer (speeder) | drafts the report from the findings |
 | Reviewer (racer) | checks the result, then waits at Human Approval for your sign-off |
 
@@ -181,7 +181,8 @@ screens), anti-aliasing, menu text size (70–120%), map label size (names above
 The default is fully local and free: `agentrts-qwen3` (Qwen3 4B instruct with a 16K context)
 on Ollama. A mission takes 2–5 minutes on an M1 Pro. Small local models give rough reports, and
 Hermes skips its final synthesis when a model call times out (45 s per call). For better
-results, point Hermes at any OpenAI-compatible endpoint in `infra/hermes.env`:
+results, point Hermes at any OpenAI-compatible endpoint in `infra/hermes.env` (created from
+`infra/hermes.env.example` on first start; it is git-ignored, so keys stay local):
 
 ```bash
 LLM_API_BASE=https://openrouter.ai/api/v1
@@ -198,6 +199,7 @@ change the budget shown in the HUD. Hermes itself does not enforce budgets.
 adapter/            world contract, Hermes source, Mission Control sink, fake source, tests
 game/               Godot project (Open RTS fork); new code in game/source/agent/
 infra/              Hermes compose override, Hermes plugin, Ollama Modelfile, SearXNG, pins
+tools/              terrain texture bake and Poly Haven import (Python)
 scripts/            setup / start / stop / run-mission / gen-env
 docs/               architecture and phase 0 findings
 vendor/             Hermes Synapse + Mission Control (+ Open RTS upstream), gitignored, pinned

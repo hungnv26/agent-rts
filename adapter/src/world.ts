@@ -235,6 +235,17 @@ export class World extends EventEmitter {
     if (!this.mission) return null;
     const done = patch.status === "completed" || patch.status === "failed" || patch.status === "cancelled";
     this.mission = { ...this.mission, ...patch, endedAt: done ? this.now() : this.mission.endedAt };
+    // A mission that stops early leaves nothing pending: open approvals are rejected and
+    // unfinished tasks closed, so neither the game nor Mission Control waits on them.
+    if (patch.status === "failed" || patch.status === "cancelled") {
+      const id = this.mission.id;
+      for (const a of this.approvals.values()) if (a.missionId === id && a.status === "pending") this.upsertApproval({ id: a.id, status: "rejected" });
+      for (const t of this.tasks.values()) {
+        if (t.missionId === id && (t.status === "queued" || t.status === "running" || t.status === "awaiting_approval")) {
+          this.upsertTask({ id: t.id, status: patch.status === "cancelled" ? "cancelled" : "failed" });
+        }
+      }
+    }
     this.emitEvent({ type: "mission.upsert", mission: this.mission });
     if (done) this.remember(this.mission);
     return this.mission;

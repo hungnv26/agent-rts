@@ -53,3 +53,37 @@ def get_migration_agents():
         ("writer", "Writer", WRITER_PROMPT, "agent", "jarvis", REASONING_ONLY, 450, 1000),
         ("reviewer", "Reviewer", REVIEWER_PROMPT, "agent", "jarvis", REASONING_ONLY, 450, 1060),
     ]
+
+
+# Hermes' execute_command tool (the Coder's "python_sandbox" skill, and sysops' shell) runs
+# subprocess.run(shell=True) inside the backend container, which can read Hermes' .env and
+# write its source mounts. Agents read web pages, so a prompt injection could steer it. This
+# hook runs those commands in the isolated sandbox container instead (no host mounts; the
+# same service Hermes uses for generated code), returning execute_command's JSON shape.
+SANDBOX_URL = "http://jarvis-sandbox:8080/execute"
+SHELL_TOOLS = {"execute_command"}
+
+
+def execute_named_tool(name, arguments):
+    if name not in SHELL_TOOLS:
+        return None  # not ours: Hermes handles it
+    import json
+
+    import requests
+
+    command = str((arguments or {}).get("command", ""))
+    code = (
+        "import subprocess, json\n"
+        f"r = subprocess.run({command!r}, shell=True, capture_output=True, text=True, timeout=60)\n"
+        "print(json.dumps({'exit_code': r.returncode, 'stdout': r.stdout, 'stderr': r.stderr}))\n"
+    )
+    try:
+        resp = requests.post(SANDBOX_URL, json={"code": code, "timeout": 70.0}, timeout=75.0)
+        resp.raise_for_status()
+        data = resp.json()
+        out = (data.get("stdout") or "").strip().splitlines()
+        if data.get("success") and out:
+            return out[-1]
+        return json.dumps({"error": "Command failed in the sandbox.", "stderr": data.get("stderr", "")}, ensure_ascii=False)
+    except Exception as e:  # never fall back to running it in the backend
+        return json.dumps({"error": f"Sandbox unavailable, command not run: {e}"}, ensure_ascii=False)

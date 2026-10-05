@@ -7,7 +7,7 @@
                  └──────────────▲───────────────────────┬───────────────────┘
                      world feed │ ws://127.0.0.1:8770/world │ commands
                  ┌──────────────┴───────────────────────▼───────────────────┐
-                 │ adapter (Node 24, TypeScript, ~1k lines)                  │
+                 │ adapter (Node 23.6+, TypeScript, ~2.4k lines)             │
                  │  World store ◀── Source: FakeSource | HermesSource       │
                  │       │                     │ WS + REST                   │
                  │       └──▶ MissionControlSink                             │
@@ -15,8 +15,9 @@
                             REST + SSE  │              │
               ┌─────────────────────────▼──┐   ┌───────▼────────────────────┐
               │ Mission Control :3000      │   │ Hermes Synapse :8100       │
-              │ tasks, agents, cost, feed  │   │ Jarvis → research, insights,│
-              │ (approve = quality review) │   │ code, reviewer · Ollama     │
+              │ tasks, agents, cost, feed  │   │ Jarvis → research, scout,  │
+              │ (approve = quality review) │   │ insights, code, writer,    │
+              │                            │   │ reviewer · Ollama          │
               └────────────────────────────┘   └────────────────────────────┘
 ```
 
@@ -35,7 +36,6 @@ On connect the server sends a `snapshot`, then events, each with an increasing `
 | `approval.upsert` | A Human Approval request: `pending → approved / rejected` |
 | `resource.update` | Tokens (estimated), cost in USD, and the cost budget |
 | `log` | A line for the in-game feed |
-
 | `replay` | Reply to `replay.request`: a recorded mission (start states plus every timestamped event until shortly after it ended). Only sent to the client that asked. |
 
 Commands from the game: `mission.create {title}`, `approval.resolve {id, approved}`, `mission.cancel`,
@@ -104,3 +104,14 @@ sub-agent `rts_<id>` under the orchestrator, with its job as the system prompt a
 mapped to `web_search` or a no-tools reasoning skill. Tool calls route to the agent's own
 building or the nearest one of the matching department, and the mission prompt lists the whole
 current team.
+
+
+## Who may talk to the adapter
+
+The adapter listens on 127.0.0.1 only and accepts HTTP and WebSocket requests from local
+tools alone: a request that carries an `Origin` header (every web page does) or a `Host`
+other than 127.0.0.1/localhost on its port is refused, and `POST /command` must be
+`application/json` (at most 64 KB). So a page open in a browser cannot start missions,
+approve them or read reports. Hermes' shell tool (`execute_command`) is redirected by the
+Agent RTS plugin into the isolated sandbox container, so an agent steered by a web page
+cannot read Hermes' keys or change its code.

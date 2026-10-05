@@ -69,7 +69,6 @@ export interface TranslatorResult {
 
 export class HermesTranslator {
   private step: Step | null = null;
-  private steps = 0;
   private finalSeen = false;
   private tokens = 0;
   private cost = 0;
@@ -166,7 +165,6 @@ export class HermesTranslator {
     if (this.step) this.completeStep("");
     const agentId = agentForHermesId(this.world.layout, hermesId, name);
     const taskId = `${this.missionId}:step${i}`;
-    this.steps = n;
     this.step = { taskId, agentId, hermesId, name };
     const title = `Step ${i}/${n}: ${name}`;
     w.upsertTask({ id: taskId, title, agentId, status: "running" });

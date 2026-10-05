@@ -1,3 +1,4 @@
+import type { AddressInfo } from "node:net";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { WebSocketServer, type WebSocket } from "ws";
 import { type Base, isLayoutCommand } from "./base.ts";
@@ -8,6 +9,8 @@ import type { World } from "./world.ts";
 
 const MAX_TITLE = 300;
 
+
+const MAX_BODY = 64 * 1024; // a command is a few hundred bytes
 export function parseCommand(raw: string): ClientCommand | null {
   let m: unknown;
   try {
@@ -75,21 +78,45 @@ export function startServer(world: World, source: Source, port: number, host = "
     }
   };
 
-  const http = createServer(async (req: IncomingMessage, res: ServerResponse) => {
+  // Only local tools may talk to the adapter: the game and curl send no Origin header,
+  // while every web page does. Host must be the loopback name the adapter listens on
+  // (stops DNS rebinding). Without this any page in a browser could start missions,
+  // approve them or read reports.
+  const trusted = (req: IncomingMessage) => {
+    const bound = (http.address() as AddressInfo | null)?.port ?? port;
+    const host = req.headers.host ?? "";
+    return !req.headers.origin && [`127.0.0.1:${bound}`, `localhost:${bound}`, `[::1]:${bound}`].includes(host);
+  };
+
+  const http = createServer((req: IncomingMessage, res: ServerResponse) => {
+    serve(req, res).catch((e) => {
+      // e.g. a client that disconnects mid-body; never let one request take the adapter down
+      if (!res.headersSent) res.writeHead(400, { "content-type": "application/json" });
+      res.end(JSON.stringify({ error: e instanceof Error ? e.message : String(e) }));
+    });
+  });
+
+  const serve = async (req: IncomingMessage, res: ServerResponse) => {
     const json = (code: number, body: unknown) => {
       res.writeHead(code, { "content-type": "application/json" });
       res.end(JSON.stringify(body));
     };
-    if (req.method === "GET" && req.url === "/health") return json(200, { ok: true, source: source.name, clients: clients.size });
-    if (req.method === "GET" && req.url === "/state") return json(200, { seq: world.currentSeq, world: world.snapshot() });
-    if (req.method === "GET" && req.url?.startsWith("/replay")) {
-      const missionId = new URL(req.url, "http://x").searchParams.get("missionId") ?? undefined;
+    if (!trusted(req)) return json(403, { error: "forbidden" });
+    const path = (req.url ?? "").split("?")[0];
+    if (req.method === "GET" && path === "/health") return json(200, { ok: true, source: source.name, clients: clients.size });
+    if (req.method === "GET" && path === "/state") return json(200, { seq: world.currentSeq, world: world.snapshot() });
+    if (req.method === "GET" && path === "/replay") {
+      const missionId = new URL(req.url ?? "", "http://x").searchParams.get("missionId") ?? undefined;
       const replay = world.replay(missionId);
       return replay ? json(200, replay) : json(404, { error: "no recorded mission" });
     }
-    if (req.method === "POST" && req.url === "/command") {
+    if (req.method === "POST" && path === "/command") {
+      if (!(req.headers["content-type"] ?? "").startsWith("application/json")) return json(415, { error: "send application/json" });
       let body = "";
-      for await (const chunk of req) body += chunk;
+      for await (const chunk of req) {
+        body += chunk;
+        if (body.length > MAX_BODY) return json(413, { error: "command too large" });
+      }
       const cmd = parseCommand(body);
       if (!cmd) return json(400, { error: "invalid command" });
       try {
@@ -100,9 +127,9 @@ export function startServer(world: World, source: Source, port: number, host = "
       }
     }
     json(404, { error: "not found" });
-  });
+  };
 
-  const wss = new WebSocketServer({ server: http, path: "/world" });
+  const wss = new WebSocketServer({ server: http, path: "/world", maxPayload: MAX_BODY, verifyClient: (info: { req: IncomingMessage }) => trusted(info.req) });
   wss.on("connection", (ws) => {
     clients.add(ws);
     ws.send(JSON.stringify({ type: "snapshot", seq: world.currentSeq, world: world.snapshot() } satisfies ServerMessage));

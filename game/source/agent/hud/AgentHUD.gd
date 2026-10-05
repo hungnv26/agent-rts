@@ -110,7 +110,6 @@ var replay_active = false
 var _settings_panel: PanelContainer
 var _chip_groups = {}  # key -> [{button, value}]
 var _zoom_slider: HSlider
-var _zoom_value: Label
 var _syncing_zoom = false
 var settings_ref = null
 var _build_panel = null
@@ -127,6 +126,10 @@ var _tasks = {}
 var _selected_agent = ""
 var _source = ""
 var _clock_tick = 0.0
+var _snapshotting = false
+var _result_deferred = false  # a finished mission's report waits for its replay
+var _shown_mission = {}  # the mission whose report the result panel shows
+var _building_sig = ""
 
 
 func _ready():
@@ -182,15 +185,23 @@ func apply_snapshot(world):
 	_mc_button.visible = _mc_url != ""
 	_approvals.clear()
 	_history = world.get("history", [])
-	set_mission(world.get("mission"))
 	_tasks.clear()
 	for t in world.get("tasks", []):
 		_tasks[t["id"]] = t
+	# A finished mission in a (re)connect snapshot isn't news: don't pop its report up.
+	_snapshotting = true
+	set_mission(world.get("mission"))
+	_snapshotting = false
 	_render_mission_status()
+	# Cards follow the 3D agents (which replay queued states); only create missing ones here.
 	for a in world.get("agents", []):
-		set_agent(a)
+		if not _cards.has(a["id"]):
+			set_agent(a)
 	for ap in world.get("approvals", []):
 		set_approval(ap)
+	_refresh_approval()
+	_render_agent_panel()
+	_render_building_panel()
 	set_resources(world.get("resources", {}))
 	for child in _log_box.get_children():
 		child.queue_free()
@@ -234,12 +245,14 @@ func set_mission(m):
 		var terminal = status in ["completed", "failed", "cancelled"]
 		if terminal:
 			_remember(m)
-		if terminal and (status != prev_status or m.get("id", "") != prev_id):
+		if terminal and not _snapshotting and (status != prev_status or m.get("id", "") != prev_id):
 			_show_result(m)
 	_render_mission_status()
 
 
 func _remember(m):
+	if _history.any(func(h): return h.get("id", "") == m.get("id", "")) and _snapshotting:
+		return  # the adapter's record (with its own task counts) wins
 	var mt = _tasks.values().filter(func(t): return t.get("missionId", "") == m.get("id", ""))
 	var rec = m.duplicate()
 	rec["tasksDone"] = mt.filter(func(t): return t.get("status") == "done").size()
@@ -258,9 +271,7 @@ func _render_mission_status():
 	if active:
 		_missions_box.add_child(_mission_row(m, _mission_progress(m), true))
 	for rec in _history.slice(0, 5):
-		var total = int(rec.get("tasksTotal", 0))
-		var pct = 1.0 if rec.get("status") == "completed" else (float(rec.get("tasksDone", 0)) / total if total > 0 else 0.0)
-		_missions_box.add_child(_mission_row(rec, pct, false))
+		_missions_box.add_child(_mission_row(rec, 1.0, false))
 	if _missions_box.get_child_count() == 0:
 		_missions_box.add_child(_muted_line("No missions yet. Describe one above and press Deploy."))
 	_render_tasks()
@@ -429,6 +440,7 @@ func select_agent(agent_id):
 
 func select_building(building_id):
 	_selected_building = building_id
+	_building_sig = ""
 	_render_building_panel()
 
 
@@ -454,10 +466,10 @@ func _row_panel(bg = Ui.BG_ROW) -> PanelContainer:
 	return p
 
 
-func _label(text, size = 15, color = TEXT):
+func _label(text, font_size = 15, color = TEXT):
 	var l = Label.new()
 	l.text = text
-	l.add_theme_font_size_override("font_size", size)
+	l.add_theme_font_size_override("font_size", font_size)
 	l.add_theme_color_override("font_color", color)
 	return l
 
@@ -568,8 +580,11 @@ func _load_agent_portrait(view: Dictionary, agent_id: String, px: int):
 		return
 	var tex_rect = view["tex"]
 	view["style"].border_color = Color.html(def.get("color", "#ffffff"))
+	# Only the latest request may fill this frame (a slower, older render must not win).
+	var want = "%s|%s|%s|%d" % [agent_id, def.get("model", ""), def.get("color", ""), px]
+	view["want"] = want
 	snapshots.model_portrait(model_path_for.call(def.get("model", "rover")), Color.html(def.get("color", "#ffffff")),
-		func(t): if is_instance_valid(tex_rect): tex_rect.texture = t, px)
+		func(t): if is_instance_valid(tex_rect) and view.get("want", "") == want: tex_rect.texture = t, px)
 
 
 func _set_progress(bar: ProgressBar, a):
@@ -950,7 +965,7 @@ func _make_card(a):
 
 func _fit_roster():
 	var content = _roster.get_combined_minimum_size()
-	var bottom_reserved = 200.0 if (_building_panel.visible) else 24.0
+	var bottom_reserved = (_building_panel.get_combined_minimum_size().y + 28.0) if _building_panel.visible else 24.0
 	var room = max(160.0, size.y - TOP_H - 70 - bottom_reserved)
 	var bar = 12.0 if content.y > room else 0.0
 	var want = Vector2(content.x + bar, min(content.y, room))
@@ -1126,10 +1141,25 @@ func _render_building_panel():
 		v["shown"] = _selected_building + b.get("model", "")
 		v.portrait.tex.texture = null
 		var tex_rect = v.portrait.tex
+		var want = v["shown"]
 		if model_path_for.is_valid():
 			snapshots.model_portrait(model_path_for.call(b.get("model", "")), Color(0, 0, 0, 0),
-				func(t): if is_instance_valid(tex_rect): tex_rect.texture = t, 192)
+				func(t): if is_instance_valid(tex_rect) and v.get("shown", "") == want: tex_rect.texture = t, 192)
+	# Rebuild the rows only when what they show changes (agent updates stream in constantly;
+	# rebuilding under the pointer would swallow a click on Approve).
+	var here_now = _agents.values().filter(func(a): return a.get("location", "") == b["id"] and not a.get("state", "") in ["idle", "complete"])
+	var sig_parts = [b["id"], b.get("model", ""), _layout.get("agents", []).filter(func(d): return d.get("home", "") == b["id"]).map(func(d): return d["name"])]
+	for ap in _approvals.values():
+		sig_parts.append([ap["id"], ap.get("status", "")])
+	for a in here_now:
+		var pr = a.get("progress")
+		sig_parts.append([a["id"], a.get("state", ""), a.get("taskTitle", ""), int(float(pr) * 20.0) if pr != null else -1])
+	var sig = JSON.stringify(sig_parts)
+	if sig == _building_sig:
+		return
+	_building_sig = sig
 	for c in v.body.get_children():
+		v.body.remove_child(c)
 		c.queue_free()
 	# Human Approval: the pending request, decided right here.
 	if b["id"] == "human_approval":
@@ -1144,9 +1174,9 @@ func _render_building_panel():
 				row.add_theme_constant_override("separation", 8)
 				var rej = _button("Reject")
 				var apid = ap["id"]
-				rej.pressed.connect(func(): approval_resolved.emit(apid, false))
+				rej.pressed.connect(func(): _resolve_id(apid, false))
 				var ok = _button("Approve", true)
-				ok.pressed.connect(func(): approval_resolved.emit(apid, true))
+				ok.pressed.connect(func(): _resolve_id(apid, true))
 				row.add_child(rej)
 				row.add_child(ok)
 				v.body.add_child(row)
@@ -1190,7 +1220,6 @@ func _build_map_buttons():
 	_map_buttons.offset_bottom = -16
 	_map_buttons.offset_left = 290
 	add_child(_map_buttons)
-	const Settings = preload("res://source/agent/Settings.gd")
 	_map_buttons.add_child(_icon_button("fit", "Show the whole base", func(): view_fit_requested.emit(), 36))
 	_map_buttons.add_child(_icon_button("plus", "Zoom in", func(): _zoom_by(-5.0), 36))
 	_map_buttons.add_child(_icon_button("minus", "Zoom out", func(): _zoom_by(5.0), 36))
@@ -1271,7 +1300,7 @@ func _build_result():
 	mc.visible = false
 	_result_panel.set_meta("mc_button", mc)
 	var copy = _button("Copy")
-	copy.pressed.connect(func(): DisplayServer.clipboard_set(_mission.get("result", "") if _mission else ""))
+	copy.pressed.connect(func(): DisplayServer.clipboard_set(str(_shown_mission.get("result", "")) if _shown_mission.get("result") != null else ""))
 	var close = _button("Close", true)
 	close.pressed.connect(func(): _result_panel.visible = false)
 	var replay = _button("▶ Replay")
@@ -1287,8 +1316,9 @@ func _build_result():
 
 
 func _mission_link():
-	if _mission != null and _mission.get("link") != null and _mission.get("link") != "":
-		return _mission["link"]
+	var link = _shown_mission.get("link")
+	if link != null and link != "":
+		return link
 	return _mc_url + "/tasks"
 
 
@@ -1303,10 +1333,17 @@ func _on_deploy():
 
 
 func _resolve(approved):
-	if _approval_id == "":
+	_resolve_id(_approval_id, approved)
+
+
+# The one way an approval is decided (dialog or Human Approval panel), so it can't be sent twice.
+func _resolve_id(id: String, approved: bool):
+	if id == "" or not _approvals.has(id) or _approvals[id].get("status") != "pending":
 		return
-	approval_resolved.emit(_approval_id, approved)
-	_approval_panel.visible = false
+	_approvals[id]["status"] = "resolving"
+	approval_resolved.emit(id, approved)
+	_refresh_approval()
+	_render_building_panel()
 
 
 func _refresh_approval():
@@ -1321,13 +1358,14 @@ func _refresh_approval():
 	_approval_id = pending["id"]
 	var who = pending.get("agentId")
 	_approval_text.text = (
-		"%s asks: %s" % [who.capitalize() if who != null else "An agent", pending.get("summary", "")]
+		"%s asks: %s" % [_agent_name(who) if who != null else "An agent", pending.get("summary", "")]
 	)
 	_approval_panel.visible = true
 
 
 func _show_result(m):
 	_shown_mission_id = m.get("id", "")
+	_shown_mission = m
 	var status = m.get("status", "")
 	_result_title.text = {
 		"completed": "MISSION COMPLETE", "failed": "MISSION FAILED", "cancelled": "MISSION CANCELLED"
@@ -1337,9 +1375,9 @@ func _show_result(m):
 		body = "No result was produced."
 	_result_text.text = _markdown_to_bbcode(body)
 	(_result_panel.get_meta("mc_button") as Button).visible = _mc_url != ""
-	if replay_active:
+	if replay_active or _result_deferred:
 		_deferred_result = m
-		_replay_report.visible = true
+		_replay_report.visible = replay_active
 		return
 	_result_panel.visible = status != "cancelled"
 
@@ -1366,14 +1404,7 @@ static func _markdown_to_bbcode(md: String) -> String:
 
 
 func _role_color(role):
-	if ROLE_COLORS.has(role):
-		return ROLE_COLORS[role]
-	return {
-		"researcher": Color(0.35, 0.8, 1.0),
-		"coder": Color(1.0, 0.6, 0.25),
-		"analyst": Color(0.55, 0.95, 0.5),
-		"reviewer": Color(0.85, 0.55, 1.0),
-	}.get(role, Color.WHITE)
+	return ROLE_COLORS.get(role, Color.WHITE)
 
 
 static func _fmt_int(n: int) -> String:
@@ -1463,6 +1494,7 @@ func _on_replay_pressed():
 
 func begin_replay(title: String, duration_ms: float, markers: Array):
 	replay_active = true
+	_result_deferred = false
 	if _deferred_result == null and _result_panel.visible and _mission != null:
 		_deferred_result = _mission  # bring the report back when the replay ends
 	_result_panel.visible = false
@@ -1474,7 +1506,8 @@ func begin_replay(title: String, duration_ms: float, markers: Array):
 	_replay_pause.text = "Pause"
 	var ms = []
 	for m in markers:
-		ms.append({"x": m["t"] / duration_ms, "color": ROLE_COLORS.get(m.get("agent_id", ""), ACCENT)})
+		var aid = m.get("agent_id", "")
+		ms.append({"x": m["t"] / duration_ms, "color": _agent_colors.get(aid, ROLE_COLORS.get(aid, ACCENT))})
 	_timeline.markers = ms
 	_timeline.progress = 0.0
 	_timeline.queue_redraw()
@@ -1491,7 +1524,7 @@ func update_replay(clock_ms: float, duration_ms: float, speed: float, playing: b
 
 func replay_caption(line: Dictionary):
 	var who = line.get("agentId")
-	_replay_caption.text = ("%s: " % who.capitalize() if who != null else "") + str(line.get("text", ""))
+	_replay_caption.text = ("%s: " % _agent_name(who) if who != null else "") + str(line.get("text", ""))
 	var color = TEXT
 	match line.get("level", "info"):
 		"warn":
@@ -1512,11 +1545,11 @@ func end_replay():
 
 # The report a finished mission produced waits behind its replay.
 func defer_next_result():
-	replay_active = true
+	_result_deferred = true
 
 
 func cancel_deferred():
-	replay_active = false
+	_result_deferred = false
 	_show_deferred_result()
 
 
@@ -1737,6 +1770,7 @@ func set_layout(layout: Dictionary):
 				card.task.text = _agents[a["id"]].get("taskTitle") if _agents[a["id"]].get("taskTitle") else _idle_line(_agents[a["id"]])
 	_agent_view["shown"] = ""
 	_building_view["shown"] = ""
+	_building_sig = ""
 	_render_mission_status()
 	_render_agent_panel()
 	_render_building_panel()
@@ -1749,6 +1783,8 @@ func remove_agent(agent_id):
 	_agents.erase(agent_id)
 	if _selected_agent == agent_id:
 		select_agent("")
+	_regroup_roster()
+	_render_building_panel()
 
 
 func show_hint(text: String):

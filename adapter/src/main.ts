@@ -1,5 +1,6 @@
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { startServer } from "./server.ts";
 import type { Source } from "./source.ts";
 import { FakeSource } from "./sources/fake.ts";
@@ -37,16 +38,26 @@ async function makeSource(name: string): Promise<Source> {
 }
 
 // The player's base (Build mode) lives next to the other runtime data.
-const layoutPath = env.LAYOUT_PATH ?? new URL("../../.data/base.json", import.meta.url).pathname;
+const layoutPath = env.LAYOUT_PATH ?? fileURLToPath(new URL("../../.data/base.json", import.meta.url)); // spaces in paths stay spaces
 const world = new World(sourceName, Date.now, loadLayout(layoutPath));
 // Finished missions survive restarts (the game lists them and reopens their reports).
 const historyPath = join(dirname(layoutPath), "missions.json");
 try {
-  if (existsSync(historyPath)) world.history = JSON.parse(readFileSync(historyPath, "utf8"));
+  const saved = existsSync(historyPath) ? JSON.parse(readFileSync(historyPath, "utf8")) : [];
+  if (Array.isArray(saved)) world.history = saved;
 } catch {
   /* a damaged history file just starts empty */
 }
-world.on("history", (h) => writeFileSync(historyPath, JSON.stringify(h, null, 2)));
+// Saved atomically (temp file + rename) and never allowed to break the mission that ended.
+world.on("history", (h) => {
+  try {
+    mkdirSync(dirname(historyPath), { recursive: true });
+    writeFileSync(`${historyPath}.tmp`, JSON.stringify(h, null, 2));
+    renameSync(`${historyPath}.tmp`, historyPath);
+  } catch (e) {
+    console.error(`[adapter] could not save mission history: ${e}`);
+  }
+});
 const source = await makeSource(sourceName);
 await source.start(world);
 

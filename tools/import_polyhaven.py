@@ -49,7 +49,7 @@ def fetch(asset: str) -> Path:
         if out.exists():
             continue
         if files is None:
-            files = json.load(urllib.request.urlopen(urllib.request.Request(f"https://api.polyhaven.com/files/{asset}", headers=UA)))
+            files = json.load(urllib.request.urlopen(urllib.request.Request(f"https://api.polyhaven.com/files/{asset}", headers=UA), timeout=60))
         f = files[key]["1k"]["jpg"]
         if not f["url"].startswith("https://dl.polyhaven.org/"):
             raise SystemExit(f"unexpected download host: {f['url']}")

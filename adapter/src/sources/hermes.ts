@@ -31,6 +31,7 @@ interface Run {
   approvalId: string | null;
   draft: string | null;
   closed: boolean;
+  finalScheduled: boolean;
 }
 
 export class HermesSource implements Source {
@@ -77,6 +78,7 @@ export class HermesSource implements Source {
       approvalId: null,
       draft: null,
       closed: false,
+      finalScheduled: false,
     };
     this.run = run;
 
@@ -87,6 +89,8 @@ export class HermesSource implements Source {
     } catch (e) {
       return this.fail(run, `Could not reach Hermes: ${errText(e)}`);
     }
+    // Cancelled or replaced while we were waiting on Hermes: don't start it after all.
+    if (this.run !== run || run.closed) return;
 
     const wsUrl = this.opts.baseUrl.replace(/^http/, "ws") + `/api/ws?token=${encodeURIComponent(this.opts.token)}`;
     const ws = new WebSocket(wsUrl);
@@ -104,7 +108,10 @@ export class HermesSource implements Source {
       const result = run.translator.handle(frame);
       // Hermes can deliver the final answer before trace broadcasts it queued earlier
       // (e.g. the last step's failure), so keep reading briefly before settling.
-      if (result) setTimeout(() => void this.onFinal(run, result.content, result.failed), FINAL_GRACE_MS);
+      if (result && !run.finalScheduled) {
+        run.finalScheduled = true;
+        setTimeout(() => void this.onFinal(run, result.content, result.failed), FINAL_GRACE_MS);
+      }
     });
     ws.on("close", (code) => {
       if (this.run === run && !run.closed && !run.translator.done) this.fail(run, `Lost connection to Hermes (code ${code}).`);

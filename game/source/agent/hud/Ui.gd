@@ -5,7 +5,6 @@ extends RefCounted
 
 const BG = Color(0.055, 0.075, 0.125, 0.9)
 const BG_ROW = Color(0.1, 0.13, 0.2, 0.85)
-const BG_ROW_HOVER = Color(0.14, 0.18, 0.28, 0.95)
 const BG_SELECTED = Color(0.13, 0.25, 0.45, 0.95)
 const BORDER = Color(0.45, 0.6, 0.85, 0.28)
 const TEXT = Color(0.92, 0.94, 0.98)

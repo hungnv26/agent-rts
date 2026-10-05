@@ -71,19 +71,19 @@ func reveal(at: Vector3):
 
 
 func _process(_delta):
-	# Save a few seconds after the last change (not on every step).
+	# Save a few seconds after the last change (not on every step), and on exit.
 	if _dirty_since >= 0.0 and Time.get_ticks_msec() / 1000.0 - _dirty_since > 4.0:
-		_dirty_since = -1.0
-		_img.save_png(ProjectSettings.globalize_path(save_path))
+		_save()
 
 
-func explored_fraction() -> float:
-	var lit = 0
-	var data = _img.get_data()
-	for b in data:
-		if b > 127:
-			lit += 1
-	return float(lit) / data.size()
+func _exit_tree():
+	if _dirty_since >= 0.0:
+		_save()
+
+
+func _save():
+	_dirty_since = -1.0
+	_img.save_png(ProjectSettings.globalize_path(save_path))
 
 
 func set_area(centre: Vector2, half_size: Vector2):

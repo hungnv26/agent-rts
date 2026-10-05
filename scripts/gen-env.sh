@@ -48,5 +48,6 @@ EOF
 fi
 
 if [[ -d vendor/hermes-synapse ]]; then
+  [[ -f infra/hermes.env ]] || cp infra/hermes.env.example infra/hermes.env
   cp infra/hermes.env vendor/hermes-synapse/.env
 fi

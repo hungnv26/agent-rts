@@ -66,6 +66,7 @@ export class MissionControlSink {
   private world!: World;
   private queue: Promise<void> = Promise.resolve();
   private mcTaskIds = new Map<string, number>(); // world task id / "mission:<id>" -> MC task id
+  private finished = new Set<string>(); // missions whose end was reported
   private expected = new Map<number, string>(); // MC task id -> status we last set
   private approvalTask = new Map<number, string>(); // MC task id -> approval id
   private lastAgent = new Map<string, string>();
@@ -177,7 +178,12 @@ export class MissionControlSink {
       this.expected.set(id, "in_progress");
       if (this.world.getMission()?.id === mission.id) this.world.updateMission({ link: `${this.opts.url}/tasks?taskId=${id}` });
       await this.event("mission:start", COMMANDER, mission.id);
-      return;
+      // fall through: the mission may already be finished (e.g. Hermes unreachable)
+    }
+    // Each mission's end is reported once (the link update above re-emits the mission).
+    if (mission.status === "completed" || mission.status === "failed" || mission.status === "cancelled") {
+      if (this.finished.has(mission.id)) return;
+      this.finished.add(mission.id);
     }
     switch (mission.status) {
       case "completed":

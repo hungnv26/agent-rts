@@ -38,11 +38,6 @@ func build():
 	_build_repair_bay()
 
 
-# Called every frame by AgentMatch with the live agents (or replay ghosts).
-func update_world(_agents: Array, _delta: float):
-	pass
-
-
 func _build_districts():
 	var size = Departments.MAP_SIZE
 	for v in Departments.STREETS:

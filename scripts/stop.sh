@@ -10,9 +10,12 @@ for name in adapter mission-control; do
   pidfile=".data/$name.pid"
   if [[ -f $pidfile ]]; then
     pid=$(cat "$pidfile")
-    # pnpm dev spawns next as a child; stop the whole group.
-    pkill -TERM -P "$pid" 2>/dev/null
-    kill "$pid" 2>/dev/null && echo "stopped $name"
+    # Only if that pid is still one of ours (pids are reused after a reboot or crash).
+    if [[ "$(ps -o command= -p "$pid" 2>/dev/null)" == *"$ROOT"* || "$(ps -o command= -p "$pid" 2>/dev/null)" == *node* ]]; then
+      pkill -TERM -P "$pid" 2>/dev/null  # the saved pid is a launcher shell; stop its children
+      kill "$pid" 2>/dev/null
+      echo "stopped $name"
+    fi
     rm -f "$pidfile"
   fi
 done

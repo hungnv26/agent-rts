@@ -19,6 +19,9 @@ for arg in "$@"; do
 done
 
 [[ -f .env ]] || scripts/gen-env.sh
+# infra/hermes.env holds your Hermes settings (and any API key); it is created from the
+# tracked example and stays out of git.
+[[ -f infra/hermes.env ]] || cp infra/hermes.env.example infra/hermes.env
 set -a; source .env; set +a
 HERMES_URL=${HERMES_URL:-http://127.0.0.1:8100}
 MC_URL=${MC_URL:-http://127.0.0.1:3000}
@@ -50,6 +53,8 @@ fi
 echo "==> Mission Control"
 if listening "$(port_of "$MC_URL")"; then
   echo "  already running on $MC_URL"
+elif [[ $FAKE == 1 && ! -f vendor/mission-control/.next/standalone/server.js ]]; then
+  echo "  not built; skipped in demo mode (run scripts/setup.sh to add it)"
 else
   # Production build (dev mode shows React/CSP debug overlays); build once if missing.
   if [[ ! -f vendor/mission-control/.next/standalone/server.js ]]; then
@@ -64,8 +69,11 @@ fi
 echo "==> Adapter"
 if listening "$ADAPTER_PORT"; then
   echo "  port $ADAPTER_PORT busy; stopping the old adapter"
-  kill "$(lsof -tiTCP:"$ADAPTER_PORT" -sTCP:LISTEN)" 2>/dev/null || true
-  sleep 1
+  for pid in $(lsof -tiTCP:"$ADAPTER_PORT" -sTCP:LISTEN); do
+    [[ "$(ps -o command= -p "$pid" 2>/dev/null)" == *src/main.ts* ]] && kill "$pid" 2>/dev/null
+  done
+  for _ in $(seq 1 20); do listening "$ADAPTER_PORT" || break; sleep 0.5; done
+  if listening "$ADAPTER_PORT"; then echo "  port $ADAPTER_PORT is held by another program; stop it first"; exit 1; fi
 fi
 SOURCE=hermes
 [[ $FAKE == 1 ]] && SOURCE=fake

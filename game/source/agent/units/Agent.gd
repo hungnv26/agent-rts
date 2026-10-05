@@ -80,11 +80,13 @@ func _ready():
 	_make_route()
 	_make_ring()
 	_render_badge()
+	if _hidden:
+		set_hidden(true)  # hidden before the labels existed (e.g. spawned during a replay)
 
 
 func push_state(agent_dict):
 	_queue.append(agent_dict)
-	# Too far behind: drop intermediate steps, keep the two most recent.
+	# Too far behind: drop intermediate steps, keep the MAX_QUEUE most recent.
 	while _queue.size() > MAX_QUEUE:
 		_queue.remove_at(0)
 
@@ -92,8 +94,29 @@ func push_state(agent_dict):
 func snap_to(agent_dict):
 	_queue.clear()
 	_apply(agent_dict, false)
+	# Stand there now: drop any walk _apply started and the spawn-time movement target.
+	_waypoints.clear()
+	action = null
+	_moving = false
 	var t = resolve_target.call(location, agent_id)
 	global_position = t[t.size() - 1] if t is Array else t
+	var nav = find_child("Movement")
+	if nav != null:
+		nav.move(global_position)
+
+
+# Walk to where this agent's place is now (after the base layout changed).
+func repark():
+	if not resolve_target.is_valid() or _moving:
+		return
+	var t = resolve_target.call(location, agent_id)
+	var dest = t[t.size() - 1] if t is Array else t
+	if Vector2(dest.x - global_position.x, dest.z - global_position.z).length() < 0.3:
+		return
+	_waypoints = t.slice(1) if t is Array else []
+	action = Moving.new(t[0] if t is Array else t)
+	_moving = true
+	_move_started_at = Time.get_ticks_msec() / 1000.0
 
 
 func is_moving():
@@ -152,6 +175,7 @@ func _apply(agent_dict, walk):
 		_waypoints = t.slice(1) if t is Array else []
 		action = Moving.new(t[0] if t is Array else t)
 		_moving = true
+		_move_started_at = Time.get_ticks_msec() / 1000.0  # also for same-location (expedition) walks
 	_render_badge()
 	state_applied.emit(self)
 
