@@ -6,3 +6,4 @@ lantern-reach/build/
 lantern-reach/tmp/
 captures/
 /lantern-reach-*.zip
+/dist/

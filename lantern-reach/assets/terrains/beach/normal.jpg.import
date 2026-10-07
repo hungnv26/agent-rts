@@ -3,19 +3,20 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://cmpu4rbd5iogi"
-path="res://.godot/imported/normal.jpg-b910a2165ec27741fa1488d7098d6272.ctex"
+path.s3tc="res://.godot/imported/normal.jpg-b910a2165ec27741fa1488d7098d6272.s3tc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://assets/terrains/beach/normal.jpg"
-dest_files=["res://.godot/imported/normal.jpg-b910a2165ec27741fa1488d7098d6272.ctex"]
+dest_files=["res://.godot/imported/normal.jpg-b910a2165ec27741fa1488d7098d6272.s3tc.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/hdr_compression=1

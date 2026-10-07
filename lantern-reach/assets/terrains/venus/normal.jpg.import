@@ -3,19 +3,20 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://dwsisi6i56pqa"
-path="res://.godot/imported/normal.jpg-9eea76026caa9a6f2e8d8e3906b0b043.ctex"
+path.s3tc="res://.godot/imported/normal.jpg-9eea76026caa9a6f2e8d8e3906b0b043.s3tc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://assets/terrains/venus/normal.jpg"
-dest_files=["res://.godot/imported/normal.jpg-9eea76026caa9a6f2e8d8e3906b0b043.ctex"]
+dest_files=["res://.godot/imported/normal.jpg-9eea76026caa9a6f2e8d8e3906b0b043.s3tc.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/hdr_compression=1

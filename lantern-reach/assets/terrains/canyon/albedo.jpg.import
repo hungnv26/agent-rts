@@ -3,19 +3,20 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://cbwy5jplar2j1"
-path="res://.godot/imported/albedo.jpg-b7c40b10d99b402cd9953d53d079de0b.ctex"
+path.s3tc="res://.godot/imported/albedo.jpg-b7c40b10d99b402cd9953d53d079de0b.s3tc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://assets/terrains/canyon/albedo.jpg"
-dest_files=["res://.godot/imported/albedo.jpg-b7c40b10d99b402cd9953d53d079de0b.ctex"]
+dest_files=["res://.godot/imported/albedo.jpg-b7c40b10d99b402cd9953d53d079de0b.s3tc.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/hdr_compression=1
