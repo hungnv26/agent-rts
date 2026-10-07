@@ -13,6 +13,12 @@ Lantern Reach is a standalone Godot 4 game. It is built on
 Kenney, KayKit, Quaternius and Poly Haven. There is no AI agent, no server and no network: the
 whole game is the `lantern-reach/` Godot project.
 
+![Pod Seven's base: the Lantern Core, Engineers, a Mech Forge, a Solar Array and a Tank](docs/screenshots/base.jpg)
+
+| The campaign | A Hollow nest | Fog of war |
+|---|---|---|
+| ![The ten worlds](docs/screenshots/campaign.jpg) | ![A nest in the Dust Basin](docs/screenshots/hollow-nest.jpg) | ![The base under fog of war](docs/screenshots/fog-of-war.jpg) |
+
 ## Play
 
 Prerequisites: [Godot 4.3+](https://godotengine.org/download) (standard build, no .NET needed).
@@ -21,6 +27,9 @@ Prerequisites: [Godot 4.3+](https://godotengine.org/download) (standard build, n
 godot --path lantern-reach            # run the game
 godot --path lantern-reach -e         # open it in the editor
 ```
+
+Or run a build: `godot --headless --path lantern-reach --export-release "Linux/X11" build/lantern-reach.x86_64`
+(also `"Windows Desktop"` and `"macOS"`) with the matching export templates installed.
 
 - **Campaign:** the ten worlds in order. Each has a briefing, a terrain and an objective.
   Winning one unlocks the next; progress is saved in Godot's user folder.

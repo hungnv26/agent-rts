@@ -21,10 +21,10 @@ script = ExtResource("1_npbka")
 [node name="Geometry" type="Node3D" parent="."]
 
 [node name="Mech_A" parent="Geometry" instance=ExtResource("2_464dm")]
-transform = Transform3D(-0.25, 0, 0, 0, 0.25, 0, 0, 0, -0.25, 0, 0, 0)
+transform = Transform3D(-0.34, 0, 0, 0, 0.34, 0, 0, 0, -0.34, 0, 0, 0)
 
 [node name="ProjectileOrigin" type="Marker3D" parent="Geometry"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.85, -0.45)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.0, -0.5)
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.3, 0)

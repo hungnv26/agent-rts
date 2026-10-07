@@ -23,6 +23,9 @@ func _ready():
 	_screen_overlay.material_override.set_shader_parameter(
 		"texture_units_per_world_unit", texture_units_per_world_unit
 	)
+	_screen_overlay.material_override.set_shader_parameter(
+		"opengl_depth", RenderingServer.get_rendering_device() == null  # no RenderingDevice = OpenGL
+	)
 	_revealer.hide()
 	find_child("EditorOnlyCircle").queue_free()
 

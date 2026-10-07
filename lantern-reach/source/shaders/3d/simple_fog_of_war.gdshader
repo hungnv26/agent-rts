@@ -7,6 +7,8 @@ uniform int texture_units_per_world_unit = 2;
 uniform float outer_margin_for_fade_out = 2.0;
 uniform bool debug_texture_view = false;
 uniform sampler2D depth_texture : hint_depth_texture;
+// true on the Compatibility (OpenGL) renderer, where NDC depth runs from -1 to 1 (set by FogOfWar.gd)
+uniform bool opengl_depth = false;
 
 void vertex()
 {
@@ -32,6 +34,10 @@ void fragment()
   // transform depth from <0; 1> value to corresponding point in projection space <-1,-1,0; 1,1,1>*
   // * note that projection space in Vulkan is different than in OpenGL
   vec3 normalized_device_coordinates = vec3(SCREEN_UV * 2.0 - 1.0, depth);
+  if (opengl_depth)
+  {
+    normalized_device_coordinates.z = depth * 2.0 - 1.0;
+  }
   // move depth point from projection space to world space
   // * note that INV_PROJECTION_MATRIX is broken atm. so, let's use inverse(PROJECTION_MATRIX)
   vec4 world_position =
@@ -70,8 +76,9 @@ void fragment()
       max_distance_from_boundary = max(max_distance_from_boundary, 0.0 - world_position.z);
       max_distance_from_boundary = max(
           max_distance_from_boundary, world_position.z - world_visibility_texture_size_scaled.y);
+      // fades from the map's own fog to the dimmed land beyond it (Lantern Reach: 0.6, was 0.8..1.0)
       float alpha_from_margin =
-          smoothstep(0.0, outer_margin_for_fade_out, max_distance_from_boundary) * 0.2 + 0.8;
+          smoothstep(0.0, outer_margin_for_fade_out, max_distance_from_boundary) * 0.6;
       ALPHA = max(ALPHA, alpha_from_margin);
 
       float alpha_from_world_visibility_texture = 0.0;
@@ -83,7 +90,8 @@ void fragment()
     }
     else
     {
-      ALPHA = 1.0;
+      // Beyond the map: the land around it stays visible but dimmed (Lantern Reach).
+      ALPHA = 0.6;
     }
   }
 

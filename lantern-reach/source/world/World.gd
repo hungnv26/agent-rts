@@ -122,7 +122,7 @@ func _set_light_targets():
 		_ambient_target_energy = NIGHT_AMBIENT_ENERGY
 		_ambient_target_color = NIGHT_TINT
 	else:
-		_sun_target_energy = _preset["sun_energy"] * 1.1
+		_sun_target_energy = _preset["sun_energy"]
 		_sun_target_color = _preset["sun"]
 		_ambient_target_energy = _preset["ambient_energy"]
 		_ambient_target_color = _preset["ambient"]
