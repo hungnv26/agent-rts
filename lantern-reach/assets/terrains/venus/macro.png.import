@@ -4,15 +4,16 @@ importer="texture"
 type="CompressedTexture2D"
 uid="uid://dfue8ej3s3jku"
 path.s3tc="res://.godot/imported/macro.png-5d387c4772366a593a46ff8ed8789b03.s3tc.ctex"
+path.etc2="res://.godot/imported/macro.png-5d387c4772366a593a46ff8ed8789b03.etc2.ctex"
 metadata={
-"imported_formats": ["s3tc_bptc"],
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
 "vram_texture": true
 }
 
 [deps]
 
 source_file="res://assets/terrains/venus/macro.png"
-dest_files=["res://.godot/imported/macro.png-5d387c4772366a593a46ff8ed8789b03.s3tc.ctex"]
+dest_files=["res://.godot/imported/macro.png-5d387c4772366a593a46ff8ed8789b03.s3tc.ctex", "res://.godot/imported/macro.png-5d387c4772366a593a46ff8ed8789b03.etc2.ctex"]
 
 [params]
 

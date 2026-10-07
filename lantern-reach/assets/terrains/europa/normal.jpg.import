@@ -4,15 +4,16 @@ importer="texture"
 type="CompressedTexture2D"
 uid="uid://dmro4xy8cb2f0"
 path.s3tc="res://.godot/imported/normal.jpg-6046e1e2c25ec2e59ce32c9f729fd48d.s3tc.ctex"
+path.etc2="res://.godot/imported/normal.jpg-6046e1e2c25ec2e59ce32c9f729fd48d.etc2.ctex"
 metadata={
-"imported_formats": ["s3tc_bptc"],
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
 "vram_texture": true
 }
 
 [deps]
 
 source_file="res://assets/terrains/europa/normal.jpg"
-dest_files=["res://.godot/imported/normal.jpg-6046e1e2c25ec2e59ce32c9f729fd48d.s3tc.ctex"]
+dest_files=["res://.godot/imported/normal.jpg-6046e1e2c25ec2e59ce32c9f729fd48d.s3tc.ctex", "res://.godot/imported/normal.jpg-6046e1e2c25ec2e59ce32c9f729fd48d.etc2.ctex"]
 
 [params]
 

@@ -4,15 +4,16 @@ importer="texture"
 type="CompressedTexture2D"
 uid="uid://fcxsmt68v8d6"
 path.s3tc="res://.godot/imported/macro.png-f4e2cbd03d956762db8d1fadb1fc852b.s3tc.ctex"
+path.etc2="res://.godot/imported/macro.png-f4e2cbd03d956762db8d1fadb1fc852b.etc2.ctex"
 metadata={
-"imported_formats": ["s3tc_bptc"],
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
 "vram_texture": true
 }
 
 [deps]
 
 source_file="res://assets/terrains/moon/macro.png"
-dest_files=["res://.godot/imported/macro.png-f4e2cbd03d956762db8d1fadb1fc852b.s3tc.ctex"]
+dest_files=["res://.godot/imported/macro.png-f4e2cbd03d956762db8d1fadb1fc852b.s3tc.ctex", "res://.godot/imported/macro.png-f4e2cbd03d956762db8d1fadb1fc852b.etc2.ctex"]
 
 [params]
 

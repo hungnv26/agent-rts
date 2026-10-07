@@ -4,15 +4,16 @@ importer="texture"
 type="CompressedTexture2D"
 uid="uid://cykoa1f4dq073"
 path.s3tc="res://.godot/imported/normal.jpg-9f4e3b2c08404ef5c1e8686a26b7c1bb.s3tc.ctex"
+path.etc2="res://.godot/imported/normal.jpg-9f4e3b2c08404ef5c1e8686a26b7c1bb.etc2.ctex"
 metadata={
-"imported_formats": ["s3tc_bptc"],
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
 "vram_texture": true
 }
 
 [deps]
 
 source_file="res://assets/terrains/sahara/normal.jpg"
-dest_files=["res://.godot/imported/normal.jpg-9f4e3b2c08404ef5c1e8686a26b7c1bb.s3tc.ctex"]
+dest_files=["res://.godot/imported/normal.jpg-9f4e3b2c08404ef5c1e8686a26b7c1bb.s3tc.ctex", "res://.godot/imported/normal.jpg-9f4e3b2c08404ef5c1e8686a26b7c1bb.etc2.ctex"]
 
 [params]
 

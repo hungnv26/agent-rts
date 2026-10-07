@@ -4,15 +4,16 @@ importer="texture"
 type="CompressedTexture2D"
 uid="uid://dukb32byqqax0"
 path.s3tc="res://.godot/imported/macro.png-8426a662a4b80a8d3a1f3c60938b45a9.s3tc.ctex"
+path.etc2="res://.godot/imported/macro.png-8426a662a4b80a8d3a1f3c60938b45a9.etc2.ctex"
 metadata={
-"imported_formats": ["s3tc_bptc"],
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
 "vram_texture": true
 }
 
 [deps]
 
 source_file="res://assets/terrains/grassland/macro.png"
-dest_files=["res://.godot/imported/macro.png-8426a662a4b80a8d3a1f3c60938b45a9.s3tc.ctex"]
+dest_files=["res://.godot/imported/macro.png-8426a662a4b80a8d3a1f3c60938b45a9.s3tc.ctex", "res://.godot/imported/macro.png-8426a662a4b80a8d3a1f3c60938b45a9.etc2.ctex"]
 
 [params]
 

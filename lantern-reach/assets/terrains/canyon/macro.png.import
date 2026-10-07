@@ -4,15 +4,16 @@ importer="texture"
 type="CompressedTexture2D"
 uid="uid://b6stll0gwh2cj"
 path.s3tc="res://.godot/imported/macro.png-2bf20ceb52fe5d40b53c9976e711d476.s3tc.ctex"
+path.etc2="res://.godot/imported/macro.png-2bf20ceb52fe5d40b53c9976e711d476.etc2.ctex"
 metadata={
-"imported_formats": ["s3tc_bptc"],
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
 "vram_texture": true
 }
 
 [deps]
 
 source_file="res://assets/terrains/canyon/macro.png"
-dest_files=["res://.godot/imported/macro.png-2bf20ceb52fe5d40b53c9976e711d476.s3tc.ctex"]
+dest_files=["res://.godot/imported/macro.png-2bf20ceb52fe5d40b53c9976e711d476.s3tc.ctex", "res://.godot/imported/macro.png-2bf20ceb52fe5d40b53c9976e711d476.etc2.ctex"]
 
 [params]
 

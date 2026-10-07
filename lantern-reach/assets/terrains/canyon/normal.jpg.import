@@ -4,15 +4,16 @@ importer="texture"
 type="CompressedTexture2D"
 uid="uid://ca15ovear0r0f"
 path.s3tc="res://.godot/imported/normal.jpg-6d796f4da55d5dda5634c0ece9f33c8f.s3tc.ctex"
+path.etc2="res://.godot/imported/normal.jpg-6d796f4da55d5dda5634c0ece9f33c8f.etc2.ctex"
 metadata={
-"imported_formats": ["s3tc_bptc"],
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
 "vram_texture": true
 }
 
 [deps]
 
 source_file="res://assets/terrains/canyon/normal.jpg"
-dest_files=["res://.godot/imported/normal.jpg-6d796f4da55d5dda5634c0ece9f33c8f.s3tc.ctex"]
+dest_files=["res://.godot/imported/normal.jpg-6d796f4da55d5dda5634c0ece9f33c8f.s3tc.ctex", "res://.godot/imported/normal.jpg-6d796f4da55d5dda5634c0ece9f33c8f.etc2.ctex"]
 
 [params]
 

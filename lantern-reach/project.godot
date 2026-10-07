@@ -226,6 +226,10 @@ locale/translations=PackedStringArray("res://assets/translations/match.en.transl
 3d_physics/layer_3="AirObjects"
 3d_physics/layer_4="Air"
 
+[rendering]
+
+textures/vram_compression/import_etc2_astc=true
+
 [navigation]
 
 3d/merge_rasterizer_cell_scale=0.001

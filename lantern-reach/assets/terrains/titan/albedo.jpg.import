@@ -4,15 +4,16 @@ importer="texture"
 type="CompressedTexture2D"
 uid="uid://ch7igup051bbd"
 path.s3tc="res://.godot/imported/albedo.jpg-0c606da6497830c4c29ed6da67d96935.s3tc.ctex"
+path.etc2="res://.godot/imported/albedo.jpg-0c606da6497830c4c29ed6da67d96935.etc2.ctex"
 metadata={
-"imported_formats": ["s3tc_bptc"],
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
 "vram_texture": true
 }
 
 [deps]
 
 source_file="res://assets/terrains/titan/albedo.jpg"
-dest_files=["res://.godot/imported/albedo.jpg-0c606da6497830c4c29ed6da67d96935.s3tc.ctex"]
+dest_files=["res://.godot/imported/albedo.jpg-0c606da6497830c4c29ed6da67d96935.s3tc.ctex", "res://.godot/imported/albedo.jpg-0c606da6497830c4c29ed6da67d96935.etc2.ctex"]
 
 [params]
 

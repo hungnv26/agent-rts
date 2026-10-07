@@ -4,15 +4,16 @@ importer="texture"
 type="CompressedTexture2D"
 uid="uid://b8wpht74hyxd0"
 path.s3tc="res://.godot/imported/albedo.jpg-ce2f68d8f2ea404546e89c013f2adc1d.s3tc.ctex"
+path.etc2="res://.godot/imported/albedo.jpg-ce2f68d8f2ea404546e89c013f2adc1d.etc2.ctex"
 metadata={
-"imported_formats": ["s3tc_bptc"],
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
 "vram_texture": true
 }
 
 [deps]
 
 source_file="res://assets/terrains/venus/albedo.jpg"
-dest_files=["res://.godot/imported/albedo.jpg-ce2f68d8f2ea404546e89c013f2adc1d.s3tc.ctex"]
+dest_files=["res://.godot/imported/albedo.jpg-ce2f68d8f2ea404546e89c013f2adc1d.s3tc.ctex", "res://.godot/imported/albedo.jpg-ce2f68d8f2ea404546e89c013f2adc1d.etc2.ctex"]
 
 [params]
 

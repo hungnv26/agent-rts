@@ -4,15 +4,16 @@ importer="texture"
 type="CompressedTexture2D"
 uid="uid://nf3mcoh4qvmv"
 path.s3tc="res://.godot/imported/macro.png-e6d60ddc08fed63f0ce2f0ca1e1d6170.s3tc.ctex"
+path.etc2="res://.godot/imported/macro.png-e6d60ddc08fed63f0ce2f0ca1e1d6170.etc2.ctex"
 metadata={
-"imported_formats": ["s3tc_bptc"],
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
 "vram_texture": true
 }
 
 [deps]
 
 source_file="res://assets/terrains/arctic/macro.png"
-dest_files=["res://.godot/imported/macro.png-e6d60ddc08fed63f0ce2f0ca1e1d6170.s3tc.ctex"]
+dest_files=["res://.godot/imported/macro.png-e6d60ddc08fed63f0ce2f0ca1e1d6170.s3tc.ctex", "res://.godot/imported/macro.png-e6d60ddc08fed63f0ce2f0ca1e1d6170.etc2.ctex"]
 
 [params]
 

@@ -4,15 +4,16 @@ importer="texture"
 type="CompressedTexture2D"
 uid="uid://dyqlp3lm7g7l6"
 path.s3tc="res://.godot/imported/rough.jpg-1ab9c9340cc274c7b825b62300b8711b.s3tc.ctex"
+path.etc2="res://.godot/imported/rough.jpg-1ab9c9340cc274c7b825b62300b8711b.etc2.ctex"
 metadata={
-"imported_formats": ["s3tc_bptc"],
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
 "vram_texture": true
 }
 
 [deps]
 
 source_file="res://assets/terrains/arctic/rough.jpg"
-dest_files=["res://.godot/imported/rough.jpg-1ab9c9340cc274c7b825b62300b8711b.s3tc.ctex"]
+dest_files=["res://.godot/imported/rough.jpg-1ab9c9340cc274c7b825b62300b8711b.s3tc.ctex", "res://.godot/imported/rough.jpg-1ab9c9340cc274c7b825b62300b8711b.etc2.ctex"]
 
 [params]
 

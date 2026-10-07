@@ -4,15 +4,16 @@ importer="texture"
 type="CompressedTexture2D"
 uid="uid://bfjwbd5cciksl"
 path.s3tc="res://.godot/imported/rough.jpg-939a1a854be5e0ad6c67c5913eebef82.s3tc.ctex"
+path.etc2="res://.godot/imported/rough.jpg-939a1a854be5e0ad6c67c5913eebef82.etc2.ctex"
 metadata={
-"imported_formats": ["s3tc_bptc"],
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
 "vram_texture": true
 }
 
 [deps]
 
 source_file="res://assets/terrains/grassland/rough.jpg"
-dest_files=["res://.godot/imported/rough.jpg-939a1a854be5e0ad6c67c5913eebef82.s3tc.ctex"]
+dest_files=["res://.godot/imported/rough.jpg-939a1a854be5e0ad6c67c5913eebef82.s3tc.ctex", "res://.godot/imported/rough.jpg-939a1a854be5e0ad6c67c5913eebef82.etc2.ctex"]
 
 [params]
 

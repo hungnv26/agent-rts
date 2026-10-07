@@ -4,15 +4,16 @@ importer="texture"
 type="CompressedTexture2D"
 uid="uid://2ta30bmeorpd"
 path.s3tc="res://.godot/imported/normal.jpg-e42315629d0a201dd0ef70527b47f108.s3tc.ctex"
+path.etc2="res://.godot/imported/normal.jpg-e42315629d0a201dd0ef70527b47f108.etc2.ctex"
 metadata={
-"imported_formats": ["s3tc_bptc"],
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
 "vram_texture": true
 }
 
 [deps]
 
 source_file="res://assets/terrains/titan/normal.jpg"
-dest_files=["res://.godot/imported/normal.jpg-e42315629d0a201dd0ef70527b47f108.s3tc.ctex"]
+dest_files=["res://.godot/imported/normal.jpg-e42315629d0a201dd0ef70527b47f108.s3tc.ctex", "res://.godot/imported/normal.jpg-e42315629d0a201dd0ef70527b47f108.etc2.ctex"]
 
 [params]
 

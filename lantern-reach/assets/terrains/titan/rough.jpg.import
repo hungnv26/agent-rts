@@ -4,15 +4,16 @@ importer="texture"
 type="CompressedTexture2D"
 uid="uid://dos654kujp1td"
 path.s3tc="res://.godot/imported/rough.jpg-e105526284e175b34e3ea18c14a92dad.s3tc.ctex"
+path.etc2="res://.godot/imported/rough.jpg-e105526284e175b34e3ea18c14a92dad.etc2.ctex"
 metadata={
-"imported_formats": ["s3tc_bptc"],
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
 "vram_texture": true
 }
 
 [deps]
 
 source_file="res://assets/terrains/titan/rough.jpg"
-dest_files=["res://.godot/imported/rough.jpg-e105526284e175b34e3ea18c14a92dad.s3tc.ctex"]
+dest_files=["res://.godot/imported/rough.jpg-e105526284e175b34e3ea18c14a92dad.s3tc.ctex", "res://.godot/imported/rough.jpg-e105526284e175b34e3ea18c14a92dad.etc2.ctex"]
 
 [params]
 

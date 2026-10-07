@@ -4,15 +4,16 @@ importer="texture"
 type="CompressedTexture2D"
 uid="uid://figr3jal8pc7"
 path.s3tc="res://.godot/imported/albedo.jpg-7bd312456f1f791c058a8de31e559bff.s3tc.ctex"
+path.etc2="res://.godot/imported/albedo.jpg-7bd312456f1f791c058a8de31e559bff.etc2.ctex"
 metadata={
-"imported_formats": ["s3tc_bptc"],
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
 "vram_texture": true
 }
 
 [deps]
 
 source_file="res://assets/terrains/europa/albedo.jpg"
-dest_files=["res://.godot/imported/albedo.jpg-7bd312456f1f791c058a8de31e559bff.s3tc.ctex"]
+dest_files=["res://.godot/imported/albedo.jpg-7bd312456f1f791c058a8de31e559bff.s3tc.ctex", "res://.godot/imported/albedo.jpg-7bd312456f1f791c058a8de31e559bff.etc2.ctex"]
 
 [params]
 
