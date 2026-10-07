@@ -1,0 +1,48 @@
+keys,en
+LOADING_STEP_PRELOADING,Waking the pod's systems...
+LOADING_STEP_LOADING_MAP,Charting the landing site...
+LOADING_STEP_LOADING_MATCH,Listening for the Hollow...
+LOADING_STEP_INSTANTIATING_MATCH,Raising the mast camera...
+LOADING_STEP_STARTING_MATCH,Opening the pod doors...
+BLUEPRINT_COLLIDES_WITH_OBJECT,Something already occupies that spot
+BLUEPRINT_NOT_NAVIGABLE,Irregular terrain
+BLUEPRINT_NOT_ENOUGH_RESOURCES,Not enough crystal
+BLUEPRINT_OUT_OF_MAP,Out of map limits
+RESOURCE_A,Lumen
+RESOURCE_B,Ember
+CANCEL_CURRENT_ACTION,Cancel current action
+WORKER,Engineer
+WORKER_DESCRIPTION,mines crystal and builds structures
+DRONE,Scout Drone
+DRONE_DESCRIPTION,fast and far-sighted; sees in the dark
+TROOPER,Trooper
+TROOPER_DESCRIPTION,mech infantry; fights ground and air targets
+TANK,Tank
+TANK_DESCRIPTION,heavy ground gun
+HELICOPTER,Gunship
+HELICOPTER_DESCRIPTION,fights ground and air targets from the air
+AG_TURRET,Cannon Post
+AG_TURRET_DESCRIPTION,fights ground targets
+AA_TURRET,Flak Post
+AA_TURRET_DESCRIPTION,fights air targets
+CC,Lantern Core
+CC_DESCRIPTION,the pod itself; trains Engineers. Lose it and the world is lost
+VEHICLE_FACTORY,Vehicle Bay
+VEHICLE_FACTORY_DESCRIPTION,builds Tanks
+AIRCRAFT_FACTORY,Hangar
+AIRCRAFT_FACTORY_DESCRIPTION,builds Gunships and Scout Drones
+MECH_FORGE,Mech Forge
+MECH_FORGE_DESCRIPTION,builds Troopers
+SOLAR_ARRAY,Solar Array
+SOLAR_ARRAY_DESCRIPTION,trickles Lumen while the sun is up
+HOLLOW_MOTE,Hollow Mote
+HOLLOW_BRUTE,Hollow Brute
+HOLLOW_WASP,Hollow Wasp
+HOLLOW_NEST,Hollow Nest
+OBJECTIVE_DESTROY_ALL,Destroy every enemy
+OBJECTIVE_SURVIVE,Survive
+OBJECTIVE_HARVEST,Gather Lumen
+OBJECTIVE_NESTS,Burn out every Hollow nest
+NIGHT_FALLS,Night falls. The Hollow stirs.
+DAY_BREAKS,Dawn. The Hollow retreats.
+HOLLOW_WAVE,The Hollow is coming

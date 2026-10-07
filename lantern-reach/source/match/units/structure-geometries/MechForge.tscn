@@ -1,0 +1,12 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="PackedScene" path="res://assets/models/kaykit-spacebase/basemodule_garage.gltf" id="1_garage"]
+[ext_resource type="PackedScene" path="res://assets/models/kaykit-spacebase/lights.gltf" id="2_lights"]
+
+[node name="Geometry" type="Node3D"]
+
+[node name="basemodule_garage" parent="." instance=ExtResource("1_garage")]
+transform = Transform3D(1.25, 0, 0, 0, 1.25, 0, 0, 0, 1.25, 0, 0, -0.1)
+
+[node name="lights" parent="." instance=ExtResource("2_lights")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.5, 0, 1.4)

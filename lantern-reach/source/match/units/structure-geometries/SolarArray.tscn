@@ -1,0 +1,17 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="PackedScene" path="res://assets/models/kaykit-spacebase/solarpanel.gltf" id="1_panel"]
+
+[node name="Geometry" type="Node3D"]
+
+[node name="solarpanel" parent="." instance=ExtResource("1_panel")]
+transform = Transform3D(1.4, 0, 0, 0, 1.4, 0, 0, 0, 1.4, -0.7, 0, -0.45)
+
+[node name="solarpanel2" parent="." instance=ExtResource("1_panel")]
+transform = Transform3D(1.4, 0, 0, 0, 1.4, 0, 0, 0, 1.4, 0.7, 0, -0.45)
+
+[node name="solarpanel3" parent="." instance=ExtResource("1_panel")]
+transform = Transform3D(1.4, 0, 0, 0, 1.4, 0, 0, 0, 1.4, -0.7, 0, 0.45)
+
+[node name="solarpanel4" parent="." instance=ExtResource("1_panel")]
+transform = Transform3D(1.4, 0, 0, 0, 1.4, 0, 0, 0, 1.4, 0.7, 0, 0.45)

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Bake the Agent RTS terrain texture sets.
 
-For each terrain this writes, into game/assets/terrains/<id>/:
+For each terrain this writes, into lantern-reach/assets/terrains/<id>/:
   albedo.jpg   1024x1024 colour (sRGB), tiles seamlessly
   normal.jpg   1024x1024 tangent-space normal map (OpenGL / Godot convention)
   rough.jpg    1024x1024 roughness

@@ -2,7 +2,7 @@
 """Build the terrain texture sets from Poly Haven photo scans (CC0, polyhaven.com).
 
 Downloads (once, into .data/polyhaven/) the 1K Diffuse / nor_gl / Rough JPGs of the assets
-below, then writes game/assets/terrains/<id>/{albedo,normal,rough}.jpg. Earth terrains use
+below, then writes lantern-reach/assets/terrains/<id>/{albedo,normal,rough}.jpg. Earth terrains use
 the scans as-is; other worlds colour-grade a scan and, where it helps, blend in features
 from the procedural bake (lunar craters, Europa's lineae). The macro layer (macro.png) comes
 from tools/bake_terrains.py, so run that first.
@@ -22,7 +22,7 @@ from PIL import Image
 ROOT = Path(__file__).resolve().parent.parent
 CACHE = ROOT / ".data" / "polyhaven"
 OUT = ROOT / "game" / "assets" / "terrains"
-UA = {"User-Agent": "agent-rts-terrain-import"}
+UA = {"User-Agent": "lantern-reach-terrain-import"}
 
 # terrain -> (Poly Haven asset, grading)
 SOURCES = {

@@ -1,12 +1,7 @@
-vendor/
-node_modules/
-dist/
-.env
-infra/hermes.env
 __pycache__/
 *.log
 .DS_Store
-game/.godot/
-game/build/
+lantern-reach/.godot/
+lantern-reach/build/
+lantern-reach/tmp/
 captures/
-.data/
