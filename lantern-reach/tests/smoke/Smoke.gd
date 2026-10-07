@@ -18,6 +18,16 @@ var _camera_size = 0.0  # --camera-size=N zooms the camera (bigger = further out
 var _camera_at = ""  # --camera-at=hollow centres the camera on the first Hollow nest
 var _walk = ""  # --walk=+z|-z sends the Engineers walking towards (+z) or away from the camera
 var _spawn = []  # --spawn=Trooper,MechForge spawns those scenes next to the player's base
+var _select = ""  # --select=Worker selects the first such unit before the screenshot (shows its menu)
+var _sheet = ""  # --sheet=DIR spawns one of everything and saves a close-up of each to DIR
+const SHEET = [
+	["Worker", 4.5], ["Drone", 4.5], ["Trooper", 4.5], ["Tank", 4.5], ["Helicopter", 4.5],
+	["CommandCenter", 8.0], ["MechForge", 7.0], ["VehicleFactory", 7.0], ["AircraftFactory", 7.0],
+	["SolarArray", 6.0], ["AntiGroundTurret", 5.0], ["AntiAirTurret", 5.0],
+	["HollowMote", 4.0], ["HollowBrute", 4.5], ["HollowWasp", 4.0], ["HollowNest", 8.0],
+]
+const SHEET_FIRST_FRAME = 60
+const SHEET_FRAMES_PER_ITEM = 10
 
 
 func _ready():
@@ -52,6 +62,12 @@ func _ready():
 			_walk = arg.substr(7) if arg.length() > 7 else "+z"
 		elif arg.begins_with("--spawn="):
 			_spawn = arg.substr(8).split(",")
+		elif arg.begins_with("--select="):
+			_select = arg.substr(9)
+		elif arg.begins_with("--sheet="):
+			_sheet = arg.substr(8)
+			settings.visibility = settings.Visibility.FULL
+			_frames = max(_frames, SHEET_FIRST_FRAME + SHEET_FRAMES_PER_ITEM * (SHEET.size() + 1))
 	MatchSignals.hollow_wave_started.connect(
 		func(_player, size): print("smoke: hollow wave of ", size)
 	)
@@ -91,6 +107,44 @@ func _debug_actions():
 		i += 1
 
 
+# One of everything on a grid south-east of the base, 10 units apart.
+func _spawn_sheet():
+	var human = null
+	for player in get_tree().get_nodes_in_group("players"):
+		if player.get_script().resource_path.ends_with("Human.gd"):
+			human = player
+	for i in range(SHEET.size()):
+		var scene_name = SHEET[i][0]
+		var unit = load("res://source/match/units/" + scene_name + ".tscn").instantiate()
+		var at = Vector3(8 + 10 * (i % 4), 0, 16 + 10 * (i / 4))
+		unit.set_meta("sheet_index", i)
+		MatchSignals.setup_and_spawn_unit.emit(unit, Transform3D(Basis(), at), human)
+		if unit.has_method("is_under_construction") and unit.is_under_construction():
+			unit.construct(1.0)
+
+
+func _sheet_step():
+	var step = _elapsed_frames - SHEET_FIRST_FRAME
+	var i = step / SHEET_FRAMES_PER_ITEM
+	var phase = step % SHEET_FRAMES_PER_ITEM
+	if i >= SHEET.size():
+		return
+	var target = null
+	for unit in get_tree().get_nodes_in_group("units"):
+		if unit.get_meta("sheet_index", -1) == i:
+			target = unit
+	if target == null:
+		return
+	var camera = _match.find_child("IsometricCamera3D")
+	if phase == 0:
+		camera.set_size_safely(SHEET[i][1])
+		camera.set_position_safely(target.global_position)
+	elif phase == 6:
+		await RenderingServer.frame_post_draw
+		get_viewport().get_texture().get_image().save_png(_sheet + "/" + SHEET[i][0] + ".png")
+		print("smoke: sheet ", SHEET[i][0])
+
+
 func _human_pivot():
 	var pivot = Vector3.ZERO
 	var n = 0
@@ -115,6 +169,15 @@ func _process(_delta):
 		camera.set_position_safely(_human_pivot())
 	if _elapsed_frames == 10 and _match != null:
 		_debug_actions()
+		if _sheet != "":
+			_spawn_sheet()
+	if _sheet != "" and _elapsed_frames >= SHEET_FIRST_FRAME:
+		_sheet_step()
+	if _elapsed_frames == _shot_frame - 10 and _select != "":
+		for unit in get_tree().get_nodes_in_group("controlled_units"):
+			if unit.type == _select:
+				unit.find_child("Selection").select()
+				break
 	if _elapsed_frames == _shot_frame - 2 and _camera_at != "":  # a unit type, e.g. Worker
 		for unit in get_tree().get_nodes_in_group("units"):
 			if unit.type == _camera_at:
