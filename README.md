@@ -19,6 +19,9 @@ whole game is the `lantern-reach/` Godot project.
 |---|---|---|
 | ![The ten worlds](docs/screenshots/campaign.jpg) | ![A nest in the Dust Basin](docs/screenshots/hollow-nest.jpg) | ![The base under fog of war](docs/screenshots/fog-of-war.jpg) |
 
+A full roster with stats, the controls and an opening build are in
+[docs/how-to-play.md](docs/how-to-play.md).
+
 ## Play
 
 Prerequisites: [Godot 4.3+](https://godotengine.org/download) (standard build, no .NET needed).
