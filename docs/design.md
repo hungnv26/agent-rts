@@ -243,8 +243,8 @@ Built and smoke-tested headless (not yet played with a screen in this pass):
 
 Next, in order of value:
 
-1. **Play it.** Facing of the Quaternius models (rotated 180° on the assumption they face +Z),
-   scales, camera distance and turret ranges all need a real screen.
+1. **Play it.** Scales, camera distance and turret ranges all need a real screen. (The
+   Quaternius models' facing is verified: rotated 180°, every character walks face first.)
 2. **Balance.** Every number in section 2 is a first pass.
 3. **Wardens with Troopers.** The Open RTS AI builds Tanks and Gunships only; teaching it the
    Mech Forge makes world 4 and world 7 feel like fighting your own crew.

@@ -20,7 +20,7 @@ var _screenshot = ""  # --screenshot=PATH saves the viewport at --shot-frame=N (
 var _shot_frame = 150
 var _camera_size = 0.0  # --camera-size=N zooms the camera (bigger = further out)
 var _camera_at = ""  # --camera-at=hollow centres the camera on the first Hollow nest
-var _walk = ""  # --walk=+z|-z sends the Engineers walking towards (+z) or away from the camera
+var _walk = ""  # --walk=+z|-z sends every mobile unit walking towards (+z) or away from the camera
 var _spawn = []  # --spawn=Trooper,MechForge spawns those scenes next to the player's base
 var _select = ""  # --select=Worker selects the first such unit before the screenshot (shows its menu)
 var _kill = ""  # --kill=Worker[:N] kills the first such controlled unit N frames before the screenshot
@@ -34,6 +34,8 @@ const SHEET = [
 ]
 const SHEET_FIRST_FRAME = 60
 const SHEET_FRAMES_PER_ITEM = 10
+# Units face -Z; the camera sits on the +Z side, so spawned units are turned to look at it.
+const FACING_CAMERA = Basis(Vector3.UP, PI)
 
 
 func _ready():
@@ -101,21 +103,21 @@ func _debug_actions():
 		if player.get_script().resource_path.ends_with("Human.gd"):
 			human = player
 	var pivot = _human_pivot()
-	if _walk != "":
-		var step = Vector3(0, 0, 3 if _walk == "+z" else -3)
-		for unit in get_tree().get_nodes_in_group("controlled_units"):
-			if unit.type == "Worker":
-				unit.action = load("res://source/match/units/actions/Moving.gd").new(
-					unit.global_position + step
-				)
 	var i = 0
 	for scene_name in _spawn:
 		var unit = load("res://source/match/units/" + scene_name + ".tscn").instantiate()
 		var at = pivot + Vector3(-6 + 4 * i, 0, 5)
-		MatchSignals.setup_and_spawn_unit.emit(unit, Transform3D(Basis(), at), human)
+		MatchSignals.setup_and_spawn_unit.emit(unit, Transform3D(FACING_CAMERA, at), human)
 		if unit.has_method("is_under_construction") and unit.is_under_construction():
 			unit.construct(1.0)
 		i += 1
+	if _walk != "":
+		var step = Vector3(0, 0, 3 if _walk == "+z" else -3)
+		for unit in get_tree().get_nodes_in_group("controlled_units"):
+			if unit.movement_speed > 0.0:
+				unit.action = load("res://source/match/units/actions/Moving.gd").new(
+					unit.global_position + step
+				)
 
 
 # One of everything on a grid south-east of the base, 10 units apart.
@@ -129,7 +131,7 @@ func _spawn_sheet():
 		var unit = load("res://source/match/units/" + scene_name + ".tscn").instantiate()
 		var at = Vector3(8 + 10 * (i % 4), 0, 16 + 10 * (i / 4))
 		unit.set_meta("sheet_index", i)
-		MatchSignals.setup_and_spawn_unit.emit(unit, Transform3D(Basis(), at), human)
+		MatchSignals.setup_and_spawn_unit.emit(unit, Transform3D(FACING_CAMERA, at), human)
 		if unit.has_method("is_under_construction") and unit.is_under_construction():
 			unit.construct(1.0)
 
