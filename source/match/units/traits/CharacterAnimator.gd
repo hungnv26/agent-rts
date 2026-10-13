@@ -13,6 +13,7 @@ const ROLES = {
 	"death": ["Death"],
 }
 const CORPSE_SECONDS = 1.8
+const Corpse = preload("res://source/match/units/traits/Corpse.gd")
 const MOVING_THRESHOLD = 0.2  # world units per second
 
 @export var run_speed = 3.0
@@ -70,24 +71,23 @@ func _play(role):
 		_anim.play(anim_name, 0.2)
 
 
-# Leave a copy of the model behind, playing Death, when the unit was killed.
+# Leave a copy of the model behind, playing Death, when the unit was killed. The unit is
+# being freed (tree_exiting fires from the delete queue), so nothing here may run later:
+# the corpse carries its own script, and only the match's deferred add_child is queued.
 func _on_unit_tree_exiting():
 	if not _names.has("death") or _unit.hp != 0 or not is_instance_valid(_geometry):
 		return
 	var a_match = _unit.find_parent("Match")
 	if a_match == null:
 		return
-	var corpse = _geometry.duplicate()
-	var corpse_transform = _geometry.global_transform
+	var corpse = Corpse.new()
+	# Copy node by node (no DUPLICATE_USE_INSTANTIATION): Godot 4.3's Skeleton3D adds an
+	# internal child at runtime, and re-instancing the model from its scene file leaves that
+	# child out, which makes duplicate() log "Child node disappeared while duplicating".
+	corpse.add_child(_geometry.duplicate(0))
+	# The unit's children have already left the tree, so the geometry's global transform
+	# is gone; the unit's own is still valid.
+	corpse.resting_transform = _unit.global_transform * _geometry.transform
+	corpse.death_animation = _names["death"]
+	corpse.seconds = CORPSE_SECONDS
 	a_match.add_child.call_deferred(corpse)
-	_start_corpse.call_deferred(corpse, corpse_transform, a_match)
-
-
-func _start_corpse(corpse, corpse_transform, a_match):
-	if not is_instance_valid(corpse) or not corpse.is_inside_tree():
-		return
-	corpse.global_transform = corpse_transform
-	var players = corpse.find_children("*", "AnimationPlayer", true, false)
-	if not players.is_empty():
-		players[0].play(_names["death"])
-	a_match.get_tree().create_timer(CORPSE_SECONDS).timeout.connect(corpse.queue_free)
