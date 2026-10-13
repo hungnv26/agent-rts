@@ -2,7 +2,8 @@ extends Node
 
 # Headless smoke test: starts a campaign world (or a skirmish with the Hollow) straight
 # into a match, lets it run for a number of frames, then quits. Any script error shows
-# in the log.
+# in the log. The node processes while the tree is paused, so the frame count keeps
+# running after a victory or defeat pauses the match.
 #   godot --headless --path . res://tests/smoke/Smoke.tscn -- --world=basin --frames=300
 # Optional: --time-scale=60 (run the clock fast, to reach the Hollow's waves and the night),
 # --objective=survive:5 (override the world's objective), --difficulty=2.0.
@@ -80,6 +81,7 @@ func _ready():
 	_match = load("res://source/match/Match.tscn").instantiate()
 	_match.settings = settings
 	_match.map = map
+	_match.process_mode = Node.PROCESS_MODE_PAUSABLE  # this node runs while paused; the match must not
 	add_child(_match)
 	print("smoke: world ", world_id, " started with ", settings.players.size(), " players")
 
