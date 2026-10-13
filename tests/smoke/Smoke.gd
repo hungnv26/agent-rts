@@ -7,6 +7,9 @@ extends Node
 #   godot --headless --path . res://tests/smoke/Smoke.tscn -- --world=basin --frames=300
 # Optional: --time-scale=60 (run the clock fast, to reach the Hollow's waves and the night),
 # --objective=survive:5 (override the world's objective), --difficulty=2.0.
+# --kill=Trooper[:N] kills the first such unit of the player N frames (default 30) before the
+# screenshot, with the camera on it, to look at the corpse. Pick N from the frame rate: the
+# corpse lasts 1.8 s, so use 3 or so when software rendering runs at a few frames a second.
 
 const MatchSettings = preload("res://source/data-model/MatchSettings.gd")
 
@@ -20,6 +23,8 @@ var _camera_at = ""  # --camera-at=hollow centres the camera on the first Hollow
 var _walk = ""  # --walk=+z|-z sends the Engineers walking towards (+z) or away from the camera
 var _spawn = []  # --spawn=Trooper,MechForge spawns those scenes next to the player's base
 var _select = ""  # --select=Worker selects the first such unit before the screenshot (shows its menu)
+var _kill = ""  # --kill=Worker[:N] kills the first such controlled unit N frames before the screenshot
+var _kill_lead = 30
 var _sheet = ""  # --sheet=DIR spawns one of everything and saves a close-up of each to DIR
 const SHEET = [
 	["Worker", 4.5], ["Drone", 4.5], ["Trooper", 4.5], ["Tank", 4.5], ["Helicopter", 4.5],
@@ -65,6 +70,10 @@ func _ready():
 			_spawn = arg.substr(8).split(",")
 		elif arg.begins_with("--select="):
 			_select = arg.substr(9)
+		elif arg.begins_with("--kill="):
+			_kill = arg.substr(7).get_slice(":", 0)
+			if arg.substr(7).contains(":"):
+				_kill_lead = int(arg.substr(7).get_slice(":", 1))
 		elif arg.begins_with("--sheet="):
 			_sheet = arg.substr(8)
 			settings.visibility = settings.Visibility.FULL
@@ -180,6 +189,13 @@ func _process(_delta):
 			if unit.type == _select:
 				unit.find_child("Selection").select()
 				break
+	if _elapsed_frames == _shot_frame - _kill_lead and _kill != "":
+		for unit in get_tree().get_nodes_in_group("controlled_units"):
+			if unit.type == _kill:
+				_match.find_child("IsometricCamera3D").set_position_safely(unit.global_position)
+				unit.hp = 0
+				print("smoke: killed ", _kill, " at ", unit.global_position)
+				break
 	if _elapsed_frames == _shot_frame - 2 and _camera_at != "":  # a unit type, e.g. Worker
 		for unit in get_tree().get_nodes_in_group("units"):
 			if unit.type == _camera_at:
@@ -189,7 +205,7 @@ func _process(_delta):
 		await RenderingServer.frame_post_draw
 		var image = get_viewport().get_texture().get_image()
 		image.save_png(_screenshot)
-		print("smoke: screenshot saved to ", _screenshot)
+		print("smoke: screenshot saved to ", _screenshot, " at ", Engine.get_frames_per_second(), " fps")
 	if _elapsed_frames >= _frames:
 		print("smoke: done")
 		get_tree().quit()
