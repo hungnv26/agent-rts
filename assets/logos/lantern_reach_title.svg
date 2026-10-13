@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="641" height="262" viewBox="0 0 641 262">
+  <rect width="641" height="262" fill="none"/>
+  <g transform="translate(320,96)">
+    <circle r="46" fill="none" stroke="#ffd37a" stroke-width="3" opacity="0.5"/>
+    <circle r="30" fill="#ffb347" opacity="0.9"/>
+    <circle r="16" fill="#fff2c4"/>
+    <path d="M-6,-62 L6,-62 L4,-34 L-4,-34 Z" fill="#ffd37a"/>
+    <path d="M-62,-6 L-62,6 L-34,4 L-34,-4 Z" fill="#ffd37a"/>
+    <path d="M62,-6 L62,6 L34,4 L34,-4 Z" fill="#ffd37a"/>
+  </g>
+  <text x="320" y="205" text-anchor="middle" font-family="DejaVu Sans, Verdana, sans-serif" font-size="52" font-weight="bold" fill="#ffffff" letter-spacing="6">LANTERN REACH</text>
+  <text x="320" y="240" text-anchor="middle" font-family="DejaVu Sans, Verdana, sans-serif" font-size="18" fill="#c9d1e3" letter-spacing="3">TEN WORLDS. ONE LIGHT.</text>
+</svg>
